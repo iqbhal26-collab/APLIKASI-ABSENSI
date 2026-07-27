@@ -77,8 +77,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo & School Info */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-blue-500/20">
-              <School className="w-6 h-6 text-slate-950" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-blue-500/20 overflow-hidden shrink-0">
+              {schoolConfig.logoUrl ? (
+                <img src={schoolConfig.logoUrl} alt={schoolConfig.schoolName} className="w-full h-full object-cover rounded-xl" />
+              ) : (
+                <School className="w-6 h-6 text-slate-950" />
+              )}
             </div>
             <div>
               <div className="flex items-center space-x-2">

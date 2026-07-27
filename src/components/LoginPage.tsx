@@ -257,8 +257,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         {/* Brand Header */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center space-x-3 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl backdrop-blur-md shadow-lg">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-blue-500/20">
-              <School className="w-5 h-5 text-slate-950" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-blue-500/20 overflow-hidden shrink-0">
+              {schoolConfig.logoUrl ? (
+                <img src={schoolConfig.logoUrl} alt={schoolConfig.schoolName} className="w-full h-full object-cover rounded-xl" />
+              ) : (
+                <School className="w-5 h-5 text-slate-950" />
+              )}
             </div>
             <div className="text-left">
               <h1 className="font-bold text-sm sm:text-base text-white tracking-tight leading-none">

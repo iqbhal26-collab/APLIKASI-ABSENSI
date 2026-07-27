@@ -85,8 +85,12 @@ CREATE TABLE IF NOT EXISTS public.school_config (
     principal_name TEXT,
     principal_nip TEXT,
     tolerance_minutes INT DEFAULT 15,
+    logo_url TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Pastikan kolom logo_url ada jika tabel school_config sudah dibuat sebelumnya
+ALTER TABLE public.school_config ADD COLUMN IF NOT EXISTS logo_url TEXT;
 
 -- 2. Table Kelas
 CREATE TABLE IF NOT EXISTS public.classes (

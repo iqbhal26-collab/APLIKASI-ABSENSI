@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SchoolConfig } from '../../types';
 import { SUPABASE_SQL_SCHEMA, sanitizeSupabaseUrl } from '../../lib/supabase';
-import { Settings, Database, Copy, Check, School, ShieldCheck, Sparkles, AlertCircle, RefreshCw, UploadCloud, DownloadCloud } from 'lucide-react';
+import { Settings, Database, Copy, Check, School, ShieldCheck, Sparkles, AlertCircle, RefreshCw, UploadCloud, DownloadCloud, Image as ImageIcon, Trash2, Upload } from 'lucide-react';
 
 interface SystemConfigProps {
   config: SchoolConfig;
@@ -25,6 +25,47 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [showSqlModal, setShowSqlModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [logoInputMode, setLogoInputMode] = useState<'upload' | 'url'>('upload');
+
+  const handleLogoFile = (file: File) => {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Silakan pilih file gambar (PNG, JPG, SVG, WEBP)');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (!result) return;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const resizedDataUrl = canvas.toDataURL('image/png');
+          setFormData(prev => ({ ...prev, logoUrl: resizedDataUrl }));
+        }
+      };
+      img.src = result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +238,126 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Logo Upload Block */}
+            <div className="md:col-span-2 bg-black/30 p-4 rounded-2xl border border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-200 flex items-center space-x-2">
+                  <ImageIcon className="w-4 h-4 text-emerald-400" />
+                  <span>Logo Resmi Sekolah:</span>
+                </label>
+                <div className="flex items-center space-x-1 bg-black/40 p-1 rounded-xl border border-white/10 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setLogoInputMode('upload')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                      logoInputMode === 'upload' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    Upload File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogoInputMode('url')}
+                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
+                      logoInputMode === 'url' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    Input URL
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                {/* Current Logo Preview */}
+                <div className="relative group w-24 h-24 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-emerald-500/20 border-2 border-dashed border-white/20 flex flex-col items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                  {formData.logoUrl ? (
+                    <>
+                      <img
+                        src={formData.logoUrl}
+                        alt="Logo Sekolah"
+                        className="w-full h-full object-contain p-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, logoUrl: '' }))}
+                        className="absolute inset-0 bg-slate-950/85 text-rose-300 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all text-xs font-bold gap-1"
+                        title="Hapus Logo"
+                      >
+                        <Trash2 className="w-5 h-5 text-rose-400" />
+                        <span>Hapus Logo</span>
+                      </button>
+                    </>
+                  ) : (
+                    <div className="text-center p-2 text-slate-400">
+                      <School className="w-8 h-8 mx-auto mb-1 text-slate-500" />
+                      <span className="text-[10px]">Belum Ada Logo</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input Method */}
+                <div className="flex-1 w-full space-y-2">
+                  {logoInputMode === 'upload' ? (
+                    <div>
+                      <label className="block border-2 border-dashed border-white/20 hover:border-emerald-400/60 rounded-2xl p-3.5 text-center cursor-pointer bg-white/5 hover:bg-white/10 transition-all group">
+                        <input
+                          type="file"
+                          accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleLogoFile(e.target.files[0]);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        <UploadCloud className="w-6 h-6 text-emerald-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
+                        <p className="text-xs font-bold text-white">
+                          Klik atau Seret Gambar ke Sini untuk Upload Logo
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Format: PNG, JPG, WEBP, atau SVG (Otomatis dioptimalkan)
+                        </p>
+                      </label>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="https://domain-sekolah.sch.id/logo.png"
+                        value={formData.logoUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                        className="w-full bg-black/40 border border-white/10 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Masukkan link URL gambar logo sekolah langsung dari website/storage.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Preset Samples */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="text-[10px] text-slate-400 font-medium">Contoh / Preset Logo:</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg/200px-Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg.png' })}
+                      className="px-2 py-0.5 bg-white/10 hover:bg-white/20 text-emerald-300 rounded text-[10px] border border-white/10 font-semibold transition-all"
+                    >
+                      Tut Wuri Handayani
+                    </button>
+                    {formData.logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, logoUrl: '' })}
+                        className="px-2 py-0.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded text-[10px] border border-rose-500/30 font-semibold transition-all"
+                      >
+                        Reset Ikon Default
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
                 Nama Resmi Sekolah:

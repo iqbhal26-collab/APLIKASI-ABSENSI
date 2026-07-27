@@ -100,6 +100,7 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
         principalName: row.principal_name || config.principalName,
         principalNip: row.principal_nip || config.principalNip,
         toleranceMinutes: row.tolerance_minutes ?? config.toleranceMinutes,
+        logoUrl: row.logo_url || config.logoUrl,
       };
     }
 
@@ -255,6 +256,7 @@ export async function seedSupabaseData(
       principal_name: config.principalName,
       principal_nip: config.principalNip,
       tolerance_minutes: config.toleranceMinutes,
+      logo_url: config.logoUrl || null,
     });
 
     // Upsert Classes
