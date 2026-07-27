@@ -1,8 +1,11 @@
 import { ActivityType, Student, User, AttendanceRecord, PermitSubmission, PushNotification, SchoolClass, SchoolConfig } from '../types';
 
+export const PERMANENT_SUPABASE_URL = 'https://kxqussgukahewhguewlp.supabase.co';
+export const PERMANENT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4cXVzc2d1a2FoZXdoZ3Vld2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNTE3NjYsImV4cCI6MjEwMDcyNzc2Nn0.Y2NIbNS32ZlX-pNaHJ-Dl18Z4zVwWjY1PyGK493V3Wo';
+
 const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
-const defaultSupabaseUrl = metaEnv.VITE_SUPABASE_URL || '';
-const defaultSupabaseAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || '';
+const defaultSupabaseUrl = metaEnv.VITE_SUPABASE_URL || PERMANENT_SUPABASE_URL;
+const defaultSupabaseAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || PERMANENT_SUPABASE_ANON_KEY;
 
 export const initialSchoolConfig: SchoolConfig = {
   schoolName: 'SMA NEGERI 1 EDUKASI BANGSA',
@@ -13,7 +16,7 @@ export const initialSchoolConfig: SchoolConfig = {
   principalName: 'Dr. H. Hendra Wijaya, M.Pd.',
   principalNip: '19680512 199303 1 004',
   toleranceMinutes: 15,
-  useSupabaseLive: Boolean(defaultSupabaseUrl && defaultSupabaseAnonKey),
+  useSupabaseLive: true,
   supabaseUrl: defaultSupabaseUrl,
   supabaseAnonKey: defaultSupabaseAnonKey,
 };

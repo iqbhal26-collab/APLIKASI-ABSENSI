@@ -199,7 +199,19 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
     const rawMsg = String(error?.message || error || '');
     let userMsg = `Gagal membaca Supabase: ${rawMsg}.`;
 
-    if (rawMsg.includes('Invalid path') || rawMsg.includes('URL') || rawMsg.includes('Failed to parse URL')) {
+    if (
+      rawMsg.includes('Invalid API key') ||
+      rawMsg.includes('apiKey') ||
+      rawMsg.includes('apikey') ||
+      rawMsg.includes('Kunci API') ||
+      rawMsg.includes('JWT') ||
+      rawMsg.includes('jwt') ||
+      rawMsg.includes('JWTRole') ||
+      error?.code === 'PGRST301' ||
+      error?.status === 401
+    ) {
+      userMsg = 'Kunci API Anon Supabase tidak valid. Silakan periksa kembali "Supabase Anon Public API Key" di Dashboard Supabase (Project Settings > API) lalu simpan di menu Pengaturan.';
+    } else if (rawMsg.includes('Invalid path') || rawMsg.includes('URL') || rawMsg.includes('Failed to parse URL')) {
       userMsg = `URL Supabase tidak valid (${config.supabaseUrl || 'Kosong'}). Pastikan URL berformat 'https://xyz.supabase.co' tanpa '/rest/v1' di belakangnya.`;
     } else if (rawMsg.includes('relation') || rawMsg.includes('does not exist') || error?.code === '42P01') {
       userMsg = `Tabel belum dibuat di database Supabase Anda. Buka menu 'Integrasi Supabase' di Pengaturan, salin DDL Script, dan jalankan di SQL Editor Dashboard Supabase Anda.`;

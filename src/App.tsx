@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { RefreshCw, AlertCircle, Check, Settings } from 'lucide-react';
 import {
   User,
   UserRole,
@@ -18,6 +18,8 @@ import {
   AttendanceStatus
 } from './types';
 import {
+  PERMANENT_SUPABASE_URL,
+  PERMANENT_SUPABASE_ANON_KEY,
   initialSchoolConfig,
   initialActivities,
   initialClasses,
@@ -67,14 +69,13 @@ export default function App() {
     const saved = localStorage.getItem('sma_school_config');
     const parsed = saved ? JSON.parse(saved) : initialSchoolConfig;
     const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
-    const url = parsed.supabaseUrl || metaEnv.VITE_SUPABASE_URL || initialSchoolConfig.supabaseUrl || '';
-    const key = parsed.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || initialSchoolConfig.supabaseAnonKey || '';
-    const hasCredentials = Boolean(url && key);
+    const url = parsed.supabaseUrl || metaEnv.VITE_SUPABASE_URL || initialSchoolConfig.supabaseUrl || PERMANENT_SUPABASE_URL;
+    const key = parsed.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || initialSchoolConfig.supabaseAnonKey || PERMANENT_SUPABASE_ANON_KEY;
     return {
       ...parsed,
       supabaseUrl: url,
       supabaseAnonKey: key,
-      useSupabaseLive: parsed.useSupabaseLive !== undefined ? parsed.useSupabaseLive : hasCredentials,
+      useSupabaseLive: true,
     };
   });
 
@@ -167,8 +168,8 @@ export default function App() {
   // Fetch all data from Supabase Cloud Database
   const handleFetchFromSupabase = async (cfg: SchoolConfig = schoolConfig) => {
     const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
-    const url = cfg.supabaseUrl || metaEnv.VITE_SUPABASE_URL || '';
-    const key = cfg.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || '';
+    const url = cfg.supabaseUrl || metaEnv.VITE_SUPABASE_URL || PERMANENT_SUPABASE_URL;
+    const key = cfg.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || PERMANENT_SUPABASE_ANON_KEY;
 
     if (!url || !key) return;
 
@@ -255,8 +256,8 @@ export default function App() {
   // Auto-fetch immediately when application opens / mounts
   useEffect(() => {
     const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
-    const url = schoolConfig.supabaseUrl || metaEnv.VITE_SUPABASE_URL || '';
-    const key = schoolConfig.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || '';
+    const url = schoolConfig.supabaseUrl || metaEnv.VITE_SUPABASE_URL || PERMANENT_SUPABASE_URL;
+    const key = schoolConfig.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || PERMANENT_SUPABASE_ANON_KEY;
 
     if (url && key) {
       handleFetchFromSupabase({
@@ -704,14 +705,31 @@ export default function App() {
               )}
               <span>{syncStatus.message}</span>
             </div>
-            {!syncStatus.isSyncing && (
-              <button
-                onClick={() => setSyncStatus(prev => ({ ...prev, message: null }))}
-                className="text-slate-400 hover:text-white text-sm px-2 font-bold"
-              >
-                &times;
-              </button>
-            )}
+            <div className="flex items-center space-x-2 shrink-0">
+              {syncStatus.isError && (
+                <button
+                  onClick={() => {
+                    const adminUser = users.find(u => u.role === 'admin') || currentUser;
+                    setCurrentUser(adminUser);
+                    setIsAuthenticated(true);
+                    setActiveTab('config');
+                    setSyncStatus(prev => ({ ...prev, message: null }));
+                  }}
+                  className="px-3 py-1 bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center space-x-1 shrink-0"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Buka Pengaturan Supabase</span>
+                </button>
+              )}
+              {!syncStatus.isSyncing && (
+                <button
+                  onClick={() => setSyncStatus(prev => ({ ...prev, message: null }))}
+                  className="text-slate-400 hover:text-white text-sm px-2 font-bold"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
