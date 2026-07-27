@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { RefreshCw, AlertCircle, Check } from 'lucide-react';
 import {
   User,
   UserRole,
@@ -64,7 +65,17 @@ export default function App() {
   // Load state from localStorage or initial mock data
   const [schoolConfig, setSchoolConfig] = useState<SchoolConfig>(() => {
     const saved = localStorage.getItem('sma_school_config');
-    return saved ? JSON.parse(saved) : initialSchoolConfig;
+    const parsed = saved ? JSON.parse(saved) : initialSchoolConfig;
+    const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+    const url = parsed.supabaseUrl || metaEnv.VITE_SUPABASE_URL || initialSchoolConfig.supabaseUrl || '';
+    const key = parsed.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || initialSchoolConfig.supabaseAnonKey || '';
+    const hasCredentials = Boolean(url && key);
+    return {
+      ...parsed,
+      supabaseUrl: url,
+      supabaseAnonKey: key,
+      useSupabaseLive: parsed.useSupabaseLive !== undefined ? parsed.useSupabaseLive : hasCredentials,
+    };
   });
 
   const [activities, setActivities] = useState<ActivityType[]>(() => {
@@ -155,15 +166,26 @@ export default function App() {
 
   // Fetch all data from Supabase Cloud Database
   const handleFetchFromSupabase = async (cfg: SchoolConfig = schoolConfig) => {
-    if (!cfg.useSupabaseLive) return;
+    const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+    const url = cfg.supabaseUrl || metaEnv.VITE_SUPABASE_URL || '';
+    const key = cfg.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || '';
 
-    setSyncStatus({ isSyncing: true, message: 'Menghubungkan & membaca data dari Supabase...', isError: false });
-    const result = await fetchAllFromSupabase(cfg);
+    if (!url || !key) return;
+
+    const activeCfg: SchoolConfig = {
+      ...cfg,
+      supabaseUrl: url,
+      supabaseAnonKey: key,
+      useSupabaseLive: true,
+    };
+
+    setSyncStatus({ isSyncing: true, message: 'Menghubungkan & menarik data otomatis dari Supabase...', isError: false });
+    const result = await fetchAllFromSupabase(activeCfg);
 
     if (result.success) {
       if (result.isEmpty) {
         setSyncStatus({ isSyncing: true, message: 'Tabel Supabase masih kosong. Mengunggah data awal ke Supabase...', isError: false });
-        const seedRes = await seedSupabaseData(cfg, {
+        const seedRes = await seedSupabaseData(activeCfg, {
           classes,
           activities,
           students,
@@ -178,6 +200,7 @@ export default function App() {
             message: 'Tersambung ke Supabase & Data Awal Berhasil Diunggah!',
             isError: false,
           });
+          setTimeout(() => setSyncStatus(prev => ({ ...prev, message: null })), 4000);
         } else {
           setSyncStatus({
             isSyncing: false,
@@ -186,19 +209,20 @@ export default function App() {
           });
         }
       } else {
-        if (result.config) setSchoolConfig(result.config);
-        if (result.classes && result.classes.length > 0) setClasses(result.classes);
-        if (result.activities && result.activities.length > 0) setActivities(result.activities);
-        if (result.students && result.students.length > 0) setStudents(result.students);
-        if (result.attendanceRecords && result.attendanceRecords.length > 0) setAttendanceRecords(result.attendanceRecords);
+        if (result.config) setSchoolConfig({ ...result.config, useSupabaseLive: true });
+        if (result.classes) setClasses(result.classes);
+        if (result.activities) setActivities(result.activities);
+        if (result.students) setStudents(result.students);
+        if (result.attendanceRecords) setAttendanceRecords(result.attendanceRecords);
         if (result.permits) setPermits(result.permits);
         if (result.notifications) setNotifications(result.notifications);
 
         setSyncStatus({
           isSyncing: false,
-          message: 'Data Berhasil Disinkronkan dari Supabase Cloud Database!',
+          message: 'Data Berhasil Disinkronkan Otomatis dari Supabase Cloud Database!',
           isError: false,
         });
+        setTimeout(() => setSyncStatus(prev => ({ ...prev, message: null })), 4000);
       }
     } else {
       setSyncStatus({
@@ -228,12 +252,21 @@ export default function App() {
     });
   };
 
-  // Auto-fetch when Supabase mode is turned ON
+  // Auto-fetch immediately when application opens / mounts
   useEffect(() => {
-    if (schoolConfig.useSupabaseLive && schoolConfig.supabaseUrl && schoolConfig.supabaseAnonKey) {
-      handleFetchFromSupabase(schoolConfig);
+    const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+    const url = schoolConfig.supabaseUrl || metaEnv.VITE_SUPABASE_URL || '';
+    const key = schoolConfig.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || '';
+
+    if (url && key) {
+      handleFetchFromSupabase({
+        ...schoolConfig,
+        supabaseUrl: url,
+        supabaseAnonKey: key,
+        useSupabaseLive: true,
+      });
     }
-  }, [schoolConfig.useSupabaseLive, schoolConfig.supabaseUrl, schoolConfig.supabaseAnonKey]);
+  }, []);
 
   // Sync to localStorage
   useEffect(() => {
@@ -650,6 +683,38 @@ export default function App() {
           onLogout={handleLogout}
         />
       </div>
+
+      {/* Auto-Sync Status Notification Banner */}
+      {syncStatus.message && (
+        <div className="relative z-20 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-3 transition-all animate-fadeIn">
+          <div className={`p-3 rounded-2xl border text-xs font-semibold shadow-xl flex items-center justify-between gap-3 ${
+            syncStatus.isError
+              ? 'bg-rose-500/20 border-rose-500/40 text-rose-200 backdrop-blur-md'
+              : syncStatus.isSyncing
+              ? 'bg-sky-500/20 border-sky-500/40 text-sky-200 backdrop-blur-md'
+              : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200 backdrop-blur-md'
+          }`}>
+            <div className="flex items-center space-x-2.5">
+              {syncStatus.isSyncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-sky-300 shrink-0" />
+              ) : syncStatus.isError ? (
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+              ) : (
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              )}
+              <span>{syncStatus.message}</span>
+            </div>
+            {!syncStatus.isSyncing && (
+              <button
+                onClick={() => setSyncStatus(prev => ({ ...prev, message: null }))}
+                className="text-slate-400 hover:text-white text-sm px-2 font-bold"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Layout Container */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row relative z-10">

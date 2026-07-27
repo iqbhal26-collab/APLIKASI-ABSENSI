@@ -1,5 +1,9 @@
 import { ActivityType, Student, User, AttendanceRecord, PermitSubmission, PushNotification, SchoolClass, SchoolConfig } from '../types';
 
+const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+const defaultSupabaseUrl = metaEnv.VITE_SUPABASE_URL || '';
+const defaultSupabaseAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || '';
+
 export const initialSchoolConfig: SchoolConfig = {
   schoolName: 'SMA NEGERI 1 EDUKASI BANGSA',
   npsn: '20103482',
@@ -9,7 +13,9 @@ export const initialSchoolConfig: SchoolConfig = {
   principalName: 'Dr. H. Hendra Wijaya, M.Pd.',
   principalNip: '19680512 199303 1 004',
   toleranceMinutes: 15,
-  useSupabaseLive: false,
+  useSupabaseLive: Boolean(defaultSupabaseUrl && defaultSupabaseAnonKey),
+  supabaseUrl: defaultSupabaseUrl,
+  supabaseAnonKey: defaultSupabaseAnonKey,
 };
 
 export const initialActivities: ActivityType[] = [
