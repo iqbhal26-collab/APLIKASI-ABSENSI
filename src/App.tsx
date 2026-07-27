@@ -1,0 +1,710 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import {
+  User,
+  UserRole,
+  Student,
+  SchoolClass,
+  ActivityType,
+  AttendanceRecord,
+  PermitSubmission,
+  PushNotification,
+  SchoolConfig,
+  AttendanceStatus
+} from './types';
+import {
+  initialSchoolConfig,
+  initialActivities,
+  initialClasses,
+  initialStudents,
+  initialUsers,
+  initialAttendanceRecords,
+  initialPermitSubmissions,
+  initialNotifications
+} from './data/mockData';
+import {
+  fetchAllFromSupabase,
+  seedSupabaseData,
+  dbAddStudent,
+  dbDeleteStudent,
+  dbRecordAttendance,
+  dbSubmitPermit,
+  dbUpdatePermitStatus,
+  dbUpdateActivities,
+  dbUpdateClasses,
+  dbDeleteClass,
+  dbUpdateSchoolConfig,
+  dbPushNotification,
+  dbMarkNotificationRead
+} from './lib/supabaseSync';
+import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
+import { LoginPage } from './components/LoginPage';
+import { RoleSelectorModal } from './components/RoleSelectorModal';
+import { AttendanceScannerModal } from './components/common/AttendanceScannerModal';
+import { NotificationDrawer } from './components/common/NotificationDrawer';
+import { ReportExportModal } from './components/common/ReportExportModal';
+
+import { AdminDashboard } from './components/admin/AdminDashboard';
+import { ClassManagement } from './components/admin/ClassManagement';
+import { UserManagement } from './components/admin/UserManagement';
+import { StudentCardPrinter } from './components/admin/StudentCardPrinter';
+import { ActivityManagement } from './components/admin/ActivityManagement';
+import { SystemConfig } from './components/admin/SystemConfig';
+
+import { GuruDashboard } from './components/guru/GuruDashboard';
+import { ParentDashboard } from './components/orangtua/ParentDashboard';
+import { StudentDashboard } from './components/siswa/StudentDashboard';
+
+export default function App() {
+  // Load state from localStorage or initial mock data
+  const [schoolConfig, setSchoolConfig] = useState<SchoolConfig>(() => {
+    const saved = localStorage.getItem('sma_school_config');
+    return saved ? JSON.parse(saved) : initialSchoolConfig;
+  });
+
+  const [activities, setActivities] = useState<ActivityType[]>(() => {
+    const saved = localStorage.getItem('sma_activities');
+    return saved ? JSON.parse(saved) : initialActivities;
+  });
+
+  const [classes, setClasses] = useState<SchoolClass[]>(() => {
+    const saved = localStorage.getItem('sma_classes');
+    return saved ? JSON.parse(saved) : initialClasses;
+  });
+
+  const [students, setStudents] = useState<Student[]>(() => {
+    const saved = localStorage.getItem('sma_students');
+    return saved ? JSON.parse(saved) : initialStudents;
+  });
+
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('sma_users');
+    return saved ? JSON.parse(saved) : initialUsers;
+  });
+
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
+    const saved = localStorage.getItem('sma_attendance_records');
+    return saved ? JSON.parse(saved) : initialAttendanceRecords;
+  });
+
+  const [permits, setPermits] = useState<PermitSubmission[]>(() => {
+    const saved = localStorage.getItem('sma_permits');
+    return saved ? JSON.parse(saved) : initialPermitSubmissions;
+  });
+
+  const [notifications, setNotifications] = useState<PushNotification[]>(() => {
+    const saved = localStorage.getItem('sma_notifications');
+    return saved ? JSON.parse(saved) : initialNotifications;
+  });
+
+  // Authentication & Current active user login
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    const savedAuth = localStorage.getItem('sma_is_authenticated');
+    return savedAuth === 'true';
+  });
+
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const savedUser = localStorage.getItem('sma_current_user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return users.find(u => u.role === 'admin') || users[0];
+  });
+
+  const handleLoginSuccess = (user: User) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    localStorage.setItem('sma_is_authenticated', 'true');
+    localStorage.setItem('sma_current_user', JSON.stringify(user));
+    setActiveTab('dashboard');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.setItem('sma_is_authenticated', 'false');
+  };
+
+  // Navigation tab
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
+
+  // Modals
+  const [isRoleSelectorOpen, setIsRoleSelectorOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Supabase sync status state
+  const [syncStatus, setSyncStatus] = useState<{
+    isSyncing: boolean;
+    message: string | null;
+    isError: boolean;
+  }>({
+    isSyncing: false,
+    message: null,
+    isError: false,
+  });
+
+  // Fetch all data from Supabase Cloud Database
+  const handleFetchFromSupabase = async (cfg: SchoolConfig = schoolConfig) => {
+    if (!cfg.useSupabaseLive) return;
+
+    setSyncStatus({ isSyncing: true, message: 'Menghubungkan & membaca data dari Supabase...', isError: false });
+    const result = await fetchAllFromSupabase(cfg);
+
+    if (result.success) {
+      if (result.isEmpty) {
+        setSyncStatus({ isSyncing: true, message: 'Tabel Supabase masih kosong. Mengunggah data awal ke Supabase...', isError: false });
+        const seedRes = await seedSupabaseData(cfg, {
+          classes,
+          activities,
+          students,
+          attendanceRecords,
+          permits,
+          notifications,
+        });
+
+        if (seedRes.success) {
+          setSyncStatus({
+            isSyncing: false,
+            message: 'Tersambung ke Supabase & Data Awal Berhasil Diunggah!',
+            isError: false,
+          });
+        } else {
+          setSyncStatus({
+            isSyncing: false,
+            message: seedRes.message,
+            isError: true,
+          });
+        }
+      } else {
+        if (result.config) setSchoolConfig(result.config);
+        if (result.classes && result.classes.length > 0) setClasses(result.classes);
+        if (result.activities && result.activities.length > 0) setActivities(result.activities);
+        if (result.students && result.students.length > 0) setStudents(result.students);
+        if (result.attendanceRecords && result.attendanceRecords.length > 0) setAttendanceRecords(result.attendanceRecords);
+        if (result.permits) setPermits(result.permits);
+        if (result.notifications) setNotifications(result.notifications);
+
+        setSyncStatus({
+          isSyncing: false,
+          message: 'Data Berhasil Disinkronkan dari Supabase Cloud Database!',
+          isError: false,
+        });
+      }
+    } else {
+      setSyncStatus({
+        isSyncing: false,
+        message: result.message,
+        isError: true,
+      });
+    }
+  };
+
+  // Seed current local state to Supabase Cloud
+  const handleSeedToSupabase = async () => {
+    setSyncStatus({ isSyncing: true, message: 'Mengunggah & menyinkronkan seluruh data ke Supabase...', isError: false });
+    const seedRes = await seedSupabaseData(schoolConfig, {
+      classes,
+      activities,
+      students,
+      attendanceRecords,
+      permits,
+      notifications,
+    });
+
+    setSyncStatus({
+      isSyncing: false,
+      message: seedRes.message,
+      isError: !seedRes.success,
+    });
+  };
+
+  // Auto-fetch when Supabase mode is turned ON
+  useEffect(() => {
+    if (schoolConfig.useSupabaseLive && schoolConfig.supabaseUrl && schoolConfig.supabaseAnonKey) {
+      handleFetchFromSupabase(schoolConfig);
+    }
+  }, [schoolConfig.useSupabaseLive, schoolConfig.supabaseUrl, schoolConfig.supabaseAnonKey]);
+
+  // Sync to localStorage
+  useEffect(() => {
+    localStorage.setItem('sma_school_config', JSON.stringify(schoolConfig));
+  }, [schoolConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_activities', JSON.stringify(activities));
+  }, [activities]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_students', JSON.stringify(students));
+  }, [students]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_attendance_records', JSON.stringify(attendanceRecords));
+  }, [attendanceRecords]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_permits', JSON.stringify(permits));
+  }, [permits]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_classes', JSON.stringify(classes));
+  }, [classes]);
+
+  useEffect(() => {
+    localStorage.setItem('sma_users', JSON.stringify(users));
+  }, [users]);
+
+  // Class Management Handlers
+  const handleSaveClass = async (updatedClass: SchoolClass, oldClassName?: string) => {
+    setClasses(prev => {
+      const exists = prev.some(c => c.id === updatedClass.id);
+      if (exists) {
+        return prev.map(c => c.id === updatedClass.id ? updatedClass : c);
+      } else {
+        return [...prev, updatedClass];
+      }
+    });
+
+    if (schoolConfig.useSupabaseLive) {
+      const dbRes = await dbUpdateClasses(schoolConfig, [updatedClass]);
+      if (dbRes && !dbRes.success) {
+        setSyncStatus({
+          isSyncing: false,
+          message: `Gagal simpan kelas ke Supabase: ${dbRes.message}`,
+          isError: true,
+        });
+      }
+    }
+
+    if (oldClassName && oldClassName !== updatedClass.name) {
+      setStudents(prev =>
+        prev.map(s => s.classId === updatedClass.id || s.className === oldClassName
+          ? { ...s, className: updatedClass.name, classId: updatedClass.id }
+          : s
+        )
+      );
+    }
+
+    if (updatedClass.homeroomTeacherId) {
+      setUsers(prev =>
+        prev.map(u => {
+          if (u.id === updatedClass.homeroomTeacherId) {
+            const currentHandled = u.classHandled || [];
+            if (!currentHandled.includes(updatedClass.id)) {
+              return { ...u, classHandled: [...currentHandled, updatedClass.id] };
+            }
+          }
+          return u;
+        })
+      );
+    }
+  };
+
+  const handleDeleteClass = (classId: string) => {
+    setClasses(prev => prev.filter(c => c.id !== classId));
+    dbDeleteClass(schoolConfig, classId);
+  };
+
+  // Handle switching user/role
+  const handleSelectUser = (user: User) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    localStorage.setItem('sma_is_authenticated', 'true');
+    localStorage.setItem('sma_current_user', JSON.stringify(user));
+    if (user.role === 'admin') setActiveTab('dashboard');
+    else if (user.role === 'guru') setActiveTab('class_attendance');
+    else if (user.role === 'orang_tua') setActiveTab('parent_child');
+    else if (user.role === 'siswa') setActiveTab('student_my');
+  };
+
+  // Record Attendance from Scanner or Manual
+  const handleRecordAttendance = (newRecordData: Omit<AttendanceRecord, 'id'>) => {
+    const newRecord: AttendanceRecord = {
+      ...newRecordData,
+      id: `att-${Date.now()}`,
+    };
+
+    setAttendanceRecords(prev => [newRecord, ...prev]);
+    dbRecordAttendance(schoolConfig, newRecord);
+
+    // Generate real-time push alert for parent
+    const std = students.find(s => s.id === newRecord.studentId);
+    if (std) {
+      const newNotif: PushNotification = {
+        id: `notif-${Date.now()}`,
+        recipientRole: 'orang_tua',
+        recipientId: std.parentId,
+        title: `Pemberitahuan Presensi: ${newRecord.activityName}`,
+        message: `Ananda ${newRecord.studentName} (${newRecord.className}) telah dicatat ${newRecord.status.toUpperCase()} pada pukul ${newRecord.time} WIB.`,
+        type: newRecord.status === 'terlambat' ? 'LATE' : 'CHECK_IN',
+        timestamp: `${newRecord.date} ${newRecord.time}`,
+        isRead: false,
+        studentName: newRecord.studentName,
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+      dbPushNotification(schoolConfig, newNotif);
+    }
+  };
+
+  // Add new student
+  const handleAddStudent = (newStd: Omit<Student, 'id' | 'qrCode'>) => {
+    const id = `std-${Date.now()}`;
+    const qrCode = `QR-STD-${newStd.nis}`;
+    const created: Student = { ...newStd, id, qrCode };
+    setStudents(prev => [...prev, created]);
+    dbAddStudent(schoolConfig, created);
+  };
+
+  // Delete student
+  const handleDeleteStudent = (id: string) => {
+    setStudents(prev => prev.filter(s => s.id !== id));
+    dbDeleteStudent(schoolConfig, id);
+  };
+
+  // Update attendance status manually by Teacher
+  const handleUpdateAttendanceStatus = (
+    studentId: string,
+    activityCode: string,
+    newStatus: AttendanceStatus,
+    notes?: string
+  ) => {
+    const std = students.find(s => s.id === studentId);
+    const act = activities.find(a => a.code === activityCode);
+    const today = new Date().toISOString().split('T')[0];
+    const timeNow = new Date().toTimeString().split(' ')[0];
+
+    // Check if record exists for today
+    const existingIndex = attendanceRecords.findIndex(
+      r => r.studentId === studentId && r.date === today && r.activityCode === activityCode
+    );
+
+    if (existingIndex >= 0) {
+      const updated = [...attendanceRecords];
+      const updatedRecord = {
+        ...updated[existingIndex],
+        status: newStatus,
+        notes: notes || updated[existingIndex].notes,
+      };
+      updated[existingIndex] = updatedRecord;
+      setAttendanceRecords(updated);
+      dbRecordAttendance(schoolConfig, updatedRecord);
+    } else if (std && act) {
+      handleRecordAttendance({
+        studentId: std.id,
+        studentName: std.name,
+        className: std.className,
+        gender: std.gender,
+        date: today,
+        activityId: act.id,
+        activityCode: act.code,
+        activityName: act.name,
+        time: timeNow,
+        status: newStatus,
+        notes: notes || 'Entry Manual Guru',
+        method: 'MANUAL_GURU',
+      });
+    }
+  };
+
+  // Submit permit by parent
+  const handleSubmitPermit = (permit: Omit<PermitSubmission, 'id' | 'createdAt' | 'status'>) => {
+    const newPermit: PermitSubmission = {
+      ...permit,
+      id: `prm-${Date.now()}`,
+      status: 'pending',
+      createdAt: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}`,
+    };
+    setPermits(prev => [newPermit, ...prev]);
+    dbSubmitPermit(schoolConfig, newPermit);
+  };
+
+  // Approve or Reject permit by Teacher
+  const handleApprovePermit = (permitId: string, isApproved: boolean) => {
+    const prm = permits.find(p => p.id === permitId);
+    if (!prm) return;
+
+    const newStatus = isApproved ? 'approved' : 'rejected';
+    setPermits(prev =>
+      prev.map(p => p.id === permitId ? { ...p, status: newStatus } : p)
+    );
+    dbUpdatePermitStatus(schoolConfig, permitId, newStatus);
+
+    if (isApproved) {
+      // Record status as sakit/izin
+      handleUpdateAttendanceStatus(prm.studentId, 'DATANG', prm.type, prm.reason);
+    }
+  };
+
+  // Mark notification read
+  const handleMarkNotifRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    dbMarkNotificationRead(schoolConfig, id);
+  };
+
+  // Simulate test push notification
+  const handleSimulateTestNotif = () => {
+    const sampleStd = students[0];
+    const newNotif: PushNotification = {
+      id: `notif-${Date.now()}`,
+      recipientRole: 'orang_tua',
+      recipientId: sampleStd.parentId,
+      title: 'Uji Coba Push Notifikasi Realtime',
+      message: `Peringatan: Ananda ${sampleStd.name} terpantau telah tiba di sekolah pukul 06:58 WIB.`,
+      type: 'CHECK_IN',
+      timestamp: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().split(' ')[0]}`,
+      isRead: false,
+      studentName: sampleStd.name,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    dbPushNotification(schoolConfig, newNotif);
+  };
+
+  // Get current student object for Student/Parent role
+  const linkedStudent = students.find(s => s.id === currentUser.studentId) || students[0];
+
+  const unreadNotifCount = notifications.filter(n => !n.isRead).length;
+
+  // Render main content area based on role and activeTab
+  const renderMainContent = () => {
+    if (currentUser.role === 'admin') {
+      switch (activeTab) {
+        case 'dashboard':
+          return (
+            <AdminDashboard
+              students={students}
+              records={attendanceRecords}
+              activities={activities}
+              classes={classes}
+              permits={permits}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenScanner={() => setIsScannerOpen(true)}
+              onOpenExportModal={() => setIsExportModalOpen(true)}
+            />
+          );
+        case 'classes':
+          return (
+            <ClassManagement
+              classes={classes}
+              users={users}
+              students={students}
+              onSaveClass={handleSaveClass}
+              onDeleteClass={handleDeleteClass}
+            />
+          );
+        case 'users':
+          return (
+            <UserManagement
+              students={students}
+              classes={classes}
+              onAddStudent={handleAddStudent}
+              onDeleteStudent={handleDeleteStudent}
+            />
+          );
+        case 'student_cards':
+          return (
+            <StudentCardPrinter
+              students={students}
+              classes={classes}
+              schoolConfig={schoolConfig}
+            />
+          );
+        case 'activities':
+          return (
+            <ActivityManagement
+              activities={activities}
+              onUpdateActivities={(newActs) => {
+                setActivities(newActs);
+                dbUpdateActivities(schoolConfig, newActs);
+              }}
+            />
+          );
+        case 'config':
+          return (
+            <SystemConfig
+              config={schoolConfig}
+              onUpdateConfig={(cfg) => {
+                setSchoolConfig(cfg);
+                dbUpdateSchoolConfig(cfg);
+                if (cfg.useSupabaseLive) {
+                  handleFetchFromSupabase(cfg);
+                }
+              }}
+              syncStatus={syncStatus}
+              onFetchFromSupabase={() => handleFetchFromSupabase()}
+              onSeedToSupabase={handleSeedToSupabase}
+            />
+          );
+        case 'reports':
+          return (
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
+              <h3 className="font-bold text-lg text-slate-900">Pusat Laporan & Ekspor Absensi Bulanan</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Unduh rekap data absensi presensi harian, sholat dzuhur & sholat jumat dalam format Microsoft Excel (.xlsx) atau Dokumen Resmi PDF.
+              </p>
+              <button
+                onClick={() => setIsExportModalOpen(true)}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-2xl shadow-lg transition-all"
+              >
+                Buka Modal Ekspor Excel / PDF
+              </button>
+            </div>
+          );
+        default:
+          return (
+            <AdminDashboard
+              students={students}
+              records={attendanceRecords}
+              activities={activities}
+              classes={classes}
+              permits={permits}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenScanner={() => setIsScannerOpen(true)}
+              onOpenExportModal={() => setIsExportModalOpen(true)}
+            />
+          );
+      }
+    } else if (currentUser.role === 'guru') {
+      return (
+        <GuruDashboard
+          classes={classes}
+          activities={activities}
+          students={students}
+          records={attendanceRecords}
+          permits={permits}
+          teacherClassHandled={currentUser.classHandled}
+          onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
+          onApprovePermit={handleApprovePermit}
+          onOpenExportModal={() => setIsExportModalOpen(true)}
+        />
+      );
+    } else if (currentUser.role === 'orang_tua') {
+      return (
+        <ParentDashboard
+          linkedStudent={linkedStudent}
+          records={attendanceRecords}
+          activities={activities}
+          permits={permits}
+          notifications={notifications}
+          onSubmitPermit={handleSubmitPermit}
+          onOpenExportModal={() => setIsExportModalOpen(true)}
+        />
+      );
+    } else if (currentUser.role === 'siswa') {
+      return (
+        <StudentDashboard
+          student={linkedStudent}
+          records={attendanceRecords}
+          activities={activities}
+          schoolConfig={schoolConfig}
+        />
+      );
+    }
+  };
+
+  // Render Login page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <LoginPage
+        schoolConfig={schoolConfig}
+        users={users}
+        students={students}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#050a18] font-sans text-slate-100 flex flex-col relative overflow-x-hidden selection:bg-emerald-500/30 selection:text-emerald-200">
+      {/* Frosted Glass Ambient Lighting Effects */}
+      <div className="fixed top-[-100px] left-[-100px] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="fixed bottom-[-100px] right-[-100px] w-[600px] h-[600px] bg-emerald-600/15 rounded-full blur-[160px] pointer-events-none z-0" />
+      <div className="fixed top-[40%] right-[20%] w-[350px] h-[350px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none z-0" />
+
+      {/* Top Navigation */}
+      <div className="relative z-10">
+        <Navbar
+          currentUser={currentUser}
+          schoolConfig={schoolConfig}
+          unreadNotifCount={unreadNotifCount}
+          onOpenRoleSelector={() => setIsRoleSelectorOpen(true)}
+          onOpenScanner={() => setIsScannerOpen(true)}
+          onToggleNotifDrawer={() => setIsNotifDrawerOpen(true)}
+          onOpenSupabaseModal={() => {
+            if (currentUser.role === 'admin') setActiveTab('config');
+            else setIsRoleSelectorOpen(true);
+          }}
+          onLogout={handleLogout}
+        />
+      </div>
+
+      {/* Main Layout Container */}
+      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row relative z-10">
+        {/* Sidebar */}
+        <Sidebar
+          currentRole={currentUser.role}
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab)}
+        />
+
+        {/* Content View */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          {renderMainContent()}
+        </main>
+      </div>
+
+      {/* Role Switcher Modal */}
+      <RoleSelectorModal
+        isOpen={isRoleSelectorOpen}
+        onClose={() => setIsRoleSelectorOpen(false)}
+        users={users}
+        currentUser={currentUser}
+        onSelectUser={handleSelectUser}
+      />
+
+      {/* Attendance Scanner Modal */}
+      <AttendanceScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        students={students}
+        activities={activities}
+        onRecordAttendance={handleRecordAttendance}
+      />
+
+      {/* Notification Drawer */}
+      <NotificationDrawer
+        isOpen={isNotifDrawerOpen}
+        onClose={() => setIsNotifDrawerOpen(false)}
+        notifications={notifications}
+        currentRole={currentUser.role}
+        currentUserId={currentUser.id}
+        onMarkAsRead={handleMarkNotifRead}
+        onSimulateTestNotif={handleSimulateTestNotif}
+      />
+
+      {/* Report Export Modal */}
+      <ReportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        classes={classes}
+        activities={activities}
+        attendanceRecords={attendanceRecords}
+        students={students}
+        schoolConfig={schoolConfig}
+      />
+    </div>
+  );
+}

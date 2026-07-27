@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Absensi Siswa SMA",
+  "description": "Aplikasi Absensi Siswa SMA real-time untuk memantau Jam Datang, Jam Pulang, Sholat Dzuhur & Sholat Jumat, Notifikasi Orang Tua, Cetak Kartu QR, Laporan & Ekspor Excel/PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
