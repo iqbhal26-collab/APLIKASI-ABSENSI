@@ -18,7 +18,6 @@ interface NavbarProps {
   currentUser: User;
   schoolConfig: SchoolConfig;
   unreadNotifCount: number;
-  onOpenRoleSelector?: () => void;
   onOpenScanner: () => void;
   onToggleNotifDrawer: () => void;
   onOpenSupabaseModal: () => void;
@@ -29,7 +28,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentUser,
   schoolConfig,
   unreadNotifCount,
-  onOpenRoleSelector,
   onOpenScanner,
   onToggleNotifDrawer,
   onOpenSupabaseModal,

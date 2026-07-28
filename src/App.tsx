@@ -916,7 +916,6 @@ export default function App() {
           currentUser={currentUser}
           schoolConfig={schoolConfig}
           unreadNotifCount={unreadNotifCount}
-          onOpenRoleSelector={() => setIsRoleSelectorOpen(true)}
           onOpenScanner={() => setIsScannerOpen(true)}
           onToggleNotifDrawer={() => setIsNotifDrawerOpen(true)}
           onOpenSupabaseModal={() => {
@@ -989,15 +988,6 @@ export default function App() {
           {renderMainContent()}
         </main>
       </div>
-
-      {/* Role Switcher Modal */}
-      <RoleSelectorModal
-        isOpen={isRoleSelectorOpen}
-        onClose={() => setIsRoleSelectorOpen(false)}
-        users={users}
-        currentUser={currentUser}
-        onSelectUser={handleSelectUser}
-      />
 
       {/* Attendance Scanner Modal */}
       <AttendanceScannerModal
