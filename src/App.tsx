@@ -56,6 +56,7 @@ import { ExcelImportModal } from './components/admin/ExcelImportModal';
 import { ParsedStudentRow, ParsedTeacherRow } from './lib/excelTemplates';
 
 import { AdminDashboard } from './components/admin/AdminDashboard';
+import { TeacherManagement } from './components/admin/TeacherManagement';
 import { ClassManagement } from './components/admin/ClassManagement';
 import { UserManagement } from './components/admin/UserManagement';
 import { StudentCardPrinter } from './components/admin/StudentCardPrinter';
@@ -356,6 +357,28 @@ export default function App() {
   const handleDeleteClass = (classId: string) => {
     setClasses(prev => prev.filter(c => c.id !== classId));
     dbDeleteClass(schoolConfig, classId);
+  };
+
+  // Teacher Handlers (Guru Agama & Wali Kelas)
+  const handleAddTeacher = (teacherData: { name: string; nip: string; role: 'guru_agama' | 'guru' }) => {
+    const newTeacher: User = {
+      id: `user-guru-${Date.now()}`,
+      username: teacherData.nip,
+      name: teacherData.name,
+      role: teacherData.role,
+      email: `${teacherData.nip}@sman1edukasi.sch.id`,
+      phone: teacherData.nip,
+    };
+
+    setUsers(prev => [...prev, newTeacher]);
+  };
+
+  const handleDeleteTeacher = (teacherId: string) => {
+    setUsers(prev => prev.filter(u => u.id !== teacherId));
+  };
+
+  const handleUpdateTeacher = (updatedUser: User) => {
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
   // Handle switching user/role
@@ -711,6 +734,16 @@ export default function App() {
               onOpenExcelImportModal={() => setIsExcelImportOpen(true)}
             />
           );
+        case 'teachers':
+          return (
+            <TeacherManagement
+              users={users}
+              classes={classes}
+              onAddTeacher={handleAddTeacher}
+              onDeleteTeacher={handleDeleteTeacher}
+              onUpdateTeacher={handleUpdateTeacher}
+            />
+          );
         case 'classes':
           return (
             <ClassManagement
@@ -985,6 +1018,7 @@ export default function App() {
         attendanceRecords={attendanceRecords}
         students={students}
         schoolConfig={schoolConfig}
+        userRole={currentUser.role}
       />
 
       {/* Excel Import Center Modal */}

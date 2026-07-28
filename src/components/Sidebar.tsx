@@ -14,7 +14,8 @@ import {
   Calendar,
   CreditCard,
   Moon,
-  School
+  School,
+  UserCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'admin':
         return [
           { id: 'dashboard', label: 'Dasbor Utama', icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: 'teachers', label: 'Kelola Data Guru & Agama', icon: <UserCheck className="w-4 h-4" /> },
           { id: 'classes', label: 'Kelola Kelas & Wali Kelas', icon: <School className="w-4 h-4" /> },
           { id: 'users', label: 'Kelola Pengguna & Siswa', icon: <Users className="w-4 h-4" /> },
           { id: 'student_cards', label: 'Cetak Kartu Siswa (QR)', icon: <CreditCard className="w-4 h-4" /> },

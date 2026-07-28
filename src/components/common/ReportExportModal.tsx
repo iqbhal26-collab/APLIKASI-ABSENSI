@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { SchoolClass, ActivityType, AttendanceRecord, Student, SchoolConfig } from '../../types';
+import { SchoolClass, ActivityType, AttendanceRecord, Student, SchoolConfig, UserRole } from '../../types';
 import { exportAttendanceToExcel, exportAttendanceToPDF } from '../../lib/exportUtils';
-import { FileSpreadsheet, FileText, X, Download, Filter, Calendar } from 'lucide-react';
+import { FileSpreadsheet, FileText, X, Download, Filter, Calendar, Moon } from 'lucide-react';
 
 interface ReportExportModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface ReportExportModalProps {
   attendanceRecords: AttendanceRecord[];
   students: Student[];
   schoolConfig: SchoolConfig;
+  userRole?: UserRole;
 }
 
 export const ReportExportModal: React.FC<ReportExportModalProps> = ({
@@ -20,20 +21,35 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
   activities,
   attendanceRecords,
   students,
-  schoolConfig
+  schoolConfig,
+  userRole
 }) => {
   if (!isOpen) return null;
+
+  const isReligionTeacher = userRole === 'guru_agama';
+
+  // Filter activities for religion teacher: only Dzuhur and Jumat
+  const filteredActivities = isReligionTeacher
+    ? activities.filter(a => a.code === 'DZUHUR' || a.code === 'JUMAT')
+    : activities;
 
   const currentYearMonth = new Date().toISOString().substring(0, 7); // e.g. "2026-07"
   const [selectedMonth, setSelectedMonth] = useState<string>(currentYearMonth);
   const [selectedClass, setSelectedClass] = useState<string>('ALL');
   const [selectedActivity, setSelectedActivity] = useState<string>('ALL');
 
+  const getRecordsToExport = () => {
+    if (isReligionTeacher) {
+      return attendanceRecords.filter(r => r.activityCode === 'DZUHUR' || r.activityCode === 'JUMAT');
+    }
+    return attendanceRecords;
+  };
+
   const handleExportExcel = () => {
     exportAttendanceToExcel(
-      attendanceRecords,
+      getRecordsToExport(),
       students,
-      activities,
+      filteredActivities,
       schoolConfig,
       {
         month: selectedMonth,
@@ -45,9 +61,9 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
 
   const handleExportPDF = () => {
     exportAttendanceToPDF(
-      attendanceRecords,
+      getRecordsToExport(),
       students,
-      activities,
+      filteredActivities,
       schoolConfig,
       {
         month: selectedMonth,
@@ -131,14 +147,25 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                 onChange={(e) => setSelectedActivity(e.target.value)}
                 className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="ALL">Semua Sesi Kegiatan (Datang, Dzuhur, Jumat, Pulang)</option>
-                {activities.map((act) => (
+                <option value="ALL">
+                  {isReligionTeacher
+                    ? 'Semua Sesi Sholat (Dzuhur & Jumat)'
+                    : 'Semua Sesi Kegiatan (Datang, Dzuhur, Jumat, Pulang)'}
+                </option>
+                {filteredActivities.map((act) => (
                   <option key={act.id} value={act.code}>
                     {act.name} ({act.code})
                   </option>
                 ))}
               </select>
             </div>
+
+            {isReligionTeacher && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
+                <Moon className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Hak Akses Guru Agama: Pencetakan terkhusus untuk Laporan Sholat Dzuhur & Sholat Jumat.</span>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}
