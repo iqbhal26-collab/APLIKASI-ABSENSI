@@ -14,8 +14,28 @@ import {
   X,
   CreditCard,
   Phone,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Database,
+  Copy,
+  Check
 } from 'lucide-react';
+
+const TEACHERS_TABLE_SQL = `-- SCRIPT PEMBUATAN TABEL GURU AGAMA & WALI KELAS DI SUPABASE
+CREATE TABLE IF NOT EXISTS public.teachers (
+    id TEXT PRIMARY KEY,
+    nip TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'guru_agama',
+    email TEXT,
+    phone TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Pengaturan Kebijakan Keamanan (RLS)
+ALTER TABLE public.teachers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public full access" ON public.teachers;
+CREATE POLICY "Allow public full access" ON public.teachers FOR ALL USING (true) WITH CHECK (true);
+`;
 
 interface TeacherManagementProps {
   users: User[];
@@ -38,6 +58,8 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
   // Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   // Form State (Simple inputs: Nama & NIP)
@@ -148,19 +170,29 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setFormError(null);
-            setTeacherName('');
-            setTeacherNip('');
-            setTeacherRole('guru_agama');
-            setIsAddModalOpen(true);
-          }}
-          className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
-        >
-          <UserPlus className="w-4 h-4 text-slate-950" />
-          <span>+ Tambah Data Guru Agama</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={() => setIsSqlModalOpen(true)}
+            className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs rounded-xl border border-emerald-500/30 shadow-lg transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
+          >
+            <Database className="w-4 h-4 text-emerald-400" />
+            <span>Script SQL Supabase</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setFormError(null);
+              setTeacherName('');
+              setTeacherNip('');
+              setTeacherRole('guru_agama');
+              setIsAddModalOpen(true);
+            }}
+            className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4 text-slate-950" />
+            <span>+ Tambah Data Guru Agama</span>
+          </button>
+        </div>
       </div>
 
       {/* Quick Statistics Cards */}
@@ -512,6 +544,67 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal SQL Script Supabase for Teachers Table */}
+      {isSqlModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button
+              onClick={() => setIsSqlModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg bg-white/5 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-lg text-white">Script DDL Tabel Guru Supabase</h3>
+                <p className="text-xs text-slate-400">Salin dan jalankan script ini di Dashboard Supabase</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed mb-3">
+              Jika tabel <code className="bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono">public.teachers</code> belum ada di database Supabase Anda, buka menu <strong className="text-white">SQL Editor</strong> di Dashboard Supabase, lalu tempelkan script berikut dan klik <strong className="text-emerald-400">Run</strong>:
+            </p>
+
+            <div className="relative mb-4">
+              <pre className="bg-black/60 p-4 rounded-2xl border border-white/10 text-xs font-mono text-emerald-300 max-h-60 overflow-y-auto whitespace-pre-wrap">
+                {TEACHERS_TABLE_SQL}
+              </pre>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(TEACHERS_TABLE_SQL);
+                  setIsCopied(true);
+                  setTimeout(() => setIsCopied(false), 2500);
+                }}
+                className="absolute top-3 right-3 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-lg shadow-md flex items-center space-x-1.5 transition-all cursor-pointer"
+              >
+                {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{isCopied ? 'Tersalin!' : 'Salin Script SQL'}</span>
+              </button>
+            </div>
+
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Setelah mengeksekusi SQL di Supabase, data Guru & Guru Agama akan otomatis tersinkronisasi.</span>
+            </div>
+
+            <div className="flex justify-end pt-4 mt-2 border-t border-white/10">
+              <button
+                onClick={() => setIsSqlModalOpen(false)}
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl cursor-pointer"
+              >
+                Selesai
+              </button>
+            </div>
           </div>
         </div>
       )}
