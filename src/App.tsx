@@ -404,6 +404,18 @@ export default function App() {
     const qrCode = `QR-STD-${newStd.nis}`;
     const created: Student = { ...newStd, id, qrCode };
     setStudents(prev => [...prev, created]);
+
+    setClasses(prevClasses => {
+      const updated = prevClasses.map(c => {
+        if (c.id === created.classId || c.name.toLowerCase().trim() === created.className.toLowerCase().trim()) {
+          return { ...c, studentCount: (c.studentCount || 0) + 1 };
+        }
+        return c;
+      });
+      dbUpdateClasses(schoolConfig, updated);
+      return updated;
+    });
+
     dbAddStudent(schoolConfig, created);
   };
 
@@ -544,7 +556,22 @@ export default function App() {
 
   // Delete student
   const handleDeleteStudent = (id: string) => {
+    const targetStudent = students.find(s => s.id === id);
     setStudents(prev => prev.filter(s => s.id !== id));
+
+    if (targetStudent) {
+      setClasses(prevClasses => {
+        const updated = prevClasses.map(c => {
+          if (c.id === targetStudent.classId || c.name.toLowerCase().trim() === targetStudent.className.toLowerCase().trim()) {
+            return { ...c, studentCount: Math.max(0, (c.studentCount || 1) - 1) };
+          }
+          return c;
+        });
+        dbUpdateClasses(schoolConfig, updated);
+        return updated;
+      });
+    }
+
     dbDeleteStudent(schoolConfig, id);
   };
 

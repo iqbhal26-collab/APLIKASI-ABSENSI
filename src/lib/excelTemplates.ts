@@ -50,7 +50,7 @@ export function downloadStudentTemplate() {
     { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '1. Jangan mengubah nama header kolom di Baris 1.' },
     { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '2. NIS dan NISN wajib diisi angka unik.' },
     { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '3. Jenis_Kelamin wajib diisi "L" (Laki-Laki) atau "P" (Perempuan).' },
-    { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '4. Kolom Kelas diisi nama kelas seperti "X IPA 1", "XI IPS 2", "XII IPA 3". Jika kelas belum ada, sistem akan otomatis membuatkan kelas baru.' },
+    { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '4. Kolom Kelas diisi nama kelas seperti "X IPA 1", "XI IPS 2". Setiap kelas dibatasi MAKSIMAL 36 SISWA.' },
     { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '5. No_WhatsApp_Orang_Tua diisi nomor HP aktif diawali angka 08... untuk menerima notifikasi absensi & sholat.' },
     { 'PETUNJUK PENGISIAN TEMPLATE IMPORT SISWA': '6. Hapus baris contoh sebelum mengunggah atau langsung timpa dengan data siswa asli Anda.' }
   ];
@@ -199,7 +199,12 @@ export async function parseExcelData(file: File): Promise<any[]> {
 /**
  * Convert raw json rows into validated ParsedStudentRow list
  */
-export function normalizeStudentImportRows(rawRows: any[]): ParsedStudentRow[] {
+export function normalizeStudentImportRows(
+  rawRows: any[],
+  existingClassCounts: Record<string, number> = {}
+): ParsedStudentRow[] {
+  const classTracker: Record<string, number> = { ...existingClassCounts };
+
   return rawRows.map((row) => {
     // Flexibly match headers
     const nis = String(row['NIS'] || row['nis'] || row['Nis'] || '').trim();
@@ -224,6 +229,15 @@ export function normalizeStudentImportRows(rawRows: any[]): ParsedStudentRow[] {
     } else if (!name) {
       isValid = false;
       validationError = 'Nama siswa kosong';
+    } else {
+      const clsKey = className.toLowerCase().trim();
+      const currentCount = classTracker[clsKey] || 0;
+      if (currentCount >= 36) {
+        isValid = false;
+        validationError = `Kapasitas kelas "${className}" penuh (Maks 36 siswa)`;
+      } else {
+        classTracker[clsKey] = currentCount + 1;
+      }
     }
 
     return {

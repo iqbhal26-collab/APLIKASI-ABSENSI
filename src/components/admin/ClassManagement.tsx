@@ -140,7 +140,7 @@ export const ClassManagement: React.FC<ClassManagementProps> = ({
             <h2 className="text-xl font-bold text-white">Kelola Nama Kelas & Wali Kelas</h2>
           </div>
           <p className="text-xs text-slate-300 mt-1">
-            Atur daftar rombel (rombongan belajar), tingkat kelas, jurusan, dan penugasan Wali Kelas (Guru).
+            Atur daftar rombel, wali kelas, serta pantau kuota maksimal siswa (Maksimal 36 siswa per kelas).
           </p>
         </div>
 
@@ -230,6 +230,9 @@ export const ClassManagement: React.FC<ClassManagementProps> = ({
               s => s.classId === cls.id || s.className === cls.name
             ).length;
             const displayStudentCount = Math.max(cls.studentCount, actualStudentCount);
+            const maxCapacity = 36;
+            const percentFilled = Math.min(100, Math.round((displayStudentCount / maxCapacity) * 100));
+            const isFull = displayStudentCount >= maxCapacity;
 
             return (
               <div
@@ -247,9 +250,37 @@ export const ClassManagement: React.FC<ClassManagementProps> = ({
                       </h3>
                     </div>
 
-                    <div className="flex items-center space-x-1 bg-black/40 px-2.5 py-1 rounded-xl border border-white/10 text-xs font-semibold text-slate-300">
+                    <div className={`flex items-center space-x-1 px-2.5 py-1 rounded-xl border text-xs font-semibold ${
+                      isFull
+                        ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                        : displayStudentCount >= 30
+                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                        : 'bg-black/40 border-white/10 text-slate-300'
+                    }`}>
                       <GraduationCap className="w-3.5 h-3.5 text-blue-400" />
-                      <span>{displayStudentCount} Siswa</span>
+                      <span>{displayStudentCount}/36 Siswa</span>
+                    </div>
+                  </div>
+
+                  {/* Student Capacity Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-slate-400">
+                      <span>Kapasitas Rombel:</span>
+                      <span className={isFull ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+                        {isFull ? 'PENUH (36/36)' : `${percentFilled}% (Maks 36)`}
+                      </span>
+                    </div>
+                    <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/5">
+                      <div
+                        className={`h-full transition-all duration-500 ${
+                          isFull
+                            ? 'bg-rose-500'
+                            : displayStudentCount >= 30
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${percentFilled}%` }}
+                      />
                     </div>
                   </div>
 

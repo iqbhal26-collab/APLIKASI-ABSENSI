@@ -30,6 +30,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [classId, setClassId] = useState(classes[0]?.id || '');
   const [parentName, setParentName] = useState('');
   const [parentPhone, setParentPhone] = useState('');
+  const [classError, setClassError] = useState<string | null>(null);
+
+  const getClassStudentCount = (cId: string, cName: string) => {
+    return students.filter(s => s.classId === cId || s.className === cName).length;
+  };
 
   const filteredStudents = students.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,13 +51,22 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     if (!name || !nis || !nisn) return;
 
     const selectedCls = classes.find(c => c.id === classId);
+    const targetClassName = selectedCls?.name || 'X IPA 1';
+    const currentCount = selectedCls ? getClassStudentCount(selectedCls.id, targetClassName) : 0;
+
+    if (currentCount >= 36) {
+      setClassError(`Kelas "${targetClassName}" sudah penuh! Maksimal 36 siswa per kelas.`);
+      return;
+    }
+
+    setClassError(null);
     onAddStudent({
       nis,
       nisn,
       name,
       gender,
       classId,
-      className: selectedCls?.name || 'X IPA 1',
+      className: targetClassName,
       parentId: `user-ortu-${Date.now()}`,
       parentName: parentName || 'Orang Tua Siswa',
       parentPhone: parentPhone || '081200000000',
@@ -292,21 +306,35 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Kelas:
+                    Kelas (Maks 36 Siswa):
                   </label>
                   <select
                     value={classId}
-                    onChange={(e) => setClassId(e.target.value)}
-                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white"
+                    onChange={(e) => {
+                      setClassId(e.target.value);
+                      setClassError(null);
+                    }}
+                    className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                   >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
+                    {classes.map((c) => {
+                      const count = getClassStudentCount(c.id, c.name);
+                      const isFull = count >= 36;
+                      return (
+                        <option key={c.id} value={c.id} className={isFull ? 'text-rose-400 font-bold' : ''}>
+                          {c.name} ({count}/36 Siswa) {isFull ? '⚠️ FULL' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
+
+              {classError && (
+                <div className="p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-xs text-rose-200 font-bold flex items-center space-x-2">
+                  <span>⚠️</span>
+                  <span>{classError}</span>
+                </div>
+              )}
 
               <div className="pt-2 border-t border-white/10">
                 <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">

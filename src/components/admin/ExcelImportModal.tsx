@@ -70,7 +70,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       }
 
       if (activeType === 'students') {
-        const normalized = normalizeStudentImportRows(rawJson);
+        const existingCounts: Record<string, number> = {};
+        classes.forEach(c => {
+          existingCounts[c.name.toLowerCase().trim()] = c.studentCount || 0;
+        });
+        const normalized = normalizeStudentImportRows(rawJson, existingCounts);
         setParsedStudents(normalized);
         // Select all valid rows by default
         const validSet = new Set<number>();
