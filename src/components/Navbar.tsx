@@ -10,7 +10,8 @@ import {
   Users,
   Database,
   RefreshCw,
-  LogOut
+  LogOut,
+  Moon
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -44,9 +45,15 @@ export const Navbar: React.FC<NavbarProps> = ({
         };
       case 'guru':
         return {
-          label: 'Guru / Wali Kelas',
+          label: 'Wali Kelas',
           bg: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
           icon: <UserCheck className="w-3.5 h-3.5 mr-1 text-blue-300" />
+        };
+      case 'guru_agama':
+        return {
+          label: 'Guru Agama',
+          bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+          icon: <Moon className="w-3.5 h-3.5 mr-1 text-emerald-300" />
         };
       case 'orang_tua':
         return {
@@ -72,7 +79,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const roleBadge = getRoleBadge(currentUser.role);
 
   return (
-    <header className="sticky top-0 z-30 bg-white/5 backdrop-blur-2xl text-slate-100 border-b border-white/10 shadow-xl">
+    <header className="sticky top-0 z-30 bg-white/5 backdrop-blur-2xl text-slate-100 border-b border-white/10 shadow-xl print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo & School Info */}

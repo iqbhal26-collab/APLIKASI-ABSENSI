@@ -48,6 +48,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'reports', label: 'Rekap Absensi Kelas', icon: <FileSpreadsheet className="w-4 h-4" /> },
         ];
 
+      case 'guru_agama':
+        return [
+          { id: 'religion_report', label: 'Laporan Sholat Dzuhur & Jumat', icon: <Moon className="w-4 h-4" /> },
+          { id: 'reports', label: 'Ekspor Laporan Sholat', icon: <FileSpreadsheet className="w-4 h-4" /> },
+        ];
+
       case 'orang_tua':
         return [
           { id: 'parent_child', label: 'Presensi Realtime Anak', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -71,7 +77,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = renderNavItems();
 
   return (
-    <aside className="w-full md:w-64 bg-white/5 backdrop-blur-2xl text-slate-200 border-r border-white/10 p-5 flex flex-col justify-between shrink-0">
+    <aside className="w-full md:w-64 bg-white/5 backdrop-blur-2xl text-slate-200 border-r border-white/10 p-5 flex flex-col justify-between shrink-0 print:hidden">
       <div>
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-4 flex items-center justify-between">
           <span>MENU ({currentRole.toUpperCase()})</span>

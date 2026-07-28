@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student, SchoolClass, SchoolConfig } from '../../types';
 import { CreditCard, Printer, Search, School, QrCode, Filter, Sparkles, Check } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface StudentCardPrinterProps {
   students: Student[];
@@ -189,8 +190,8 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                   </div>
                 </div>
 
-                <div className="p-1 bg-white rounded-lg shadow-md shrink-0">
-                  <QrCode className="w-9 h-9 text-slate-900" />
+                <div className="p-1 bg-white rounded-lg shadow-md shrink-0 flex items-center justify-center">
+                  <QRCodeSVG value={std.qrCode || `QR-STD-${std.nisn}`} size={44} level="M" />
                 </div>
               </div>
             </div>

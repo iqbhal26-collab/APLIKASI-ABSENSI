@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Student, SchoolClass, Gender } from '../../types';
-import { Search, Plus, UserPlus, Filter, Trash2, Edit, GraduationCap, Phone, QrCode, FileSpreadsheet, Download } from 'lucide-react';
+import { Search, Plus, UserPlus, Filter, Trash2, Edit, GraduationCap, Phone, QrCode, FileSpreadsheet, Download, CreditCard, Printer } from 'lucide-react';
 import { downloadStudentTemplate, downloadTeacherTemplate } from '../../lib/excelTemplates';
 
 interface UserManagementProps {
@@ -9,6 +9,7 @@ interface UserManagementProps {
   onAddStudent: (student: Omit<Student, 'id' | 'qrCode'>) => void;
   onDeleteStudent: (id: string) => void;
   onOpenExcelImportModal?: () => void;
+  onNavigateTab?: (tabId: string) => void;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({
@@ -16,7 +17,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   classes,
   onAddStudent,
   onDeleteStudent,
-  onOpenExcelImportModal
+  onOpenExcelImportModal,
+  onNavigateTab
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
@@ -93,6 +95,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onNavigateTab && (
+            <button
+              onClick={() => onNavigateTab('student_cards')}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 font-bold text-xs rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4 text-purple-300" />
+              <span>Cetak Kartu Siswa (QR)</span>
+            </button>
+          )}
+
           {onOpenExcelImportModal && (
             <button
               onClick={onOpenExcelImportModal}
@@ -160,6 +172,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
               <tr>
                 <th className="px-4 py-3.5">NIS / NISN</th>
                 <th className="px-4 py-3.5">Nama Lengkap Siswa</th>
+                <th className="px-4 py-3.5">Kode QR Absensi</th>
                 <th className="px-4 py-3.5">Gender</th>
                 <th className="px-4 py-3.5">Kelas</th>
                 <th className="px-4 py-3.5">Orang Tua / Wali</th>
@@ -170,7 +183,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <tbody className="divide-y divide-white/5">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
                     Tidak ada data siswa ditemukan.
                   </td>
                 </tr>
@@ -186,6 +199,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                       <div className="flex items-center space-x-2">
                         <GraduationCap className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span>{std.name}</span>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3.5 font-mono text-xs text-amber-300">
+                      <div className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                        <QrCode className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span>{std.qrCode || `QR-STD-${std.nis}`}</span>
                       </div>
                     </td>
 
@@ -215,13 +235,24 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                     </td>
 
                     <td className="px-4 py-3.5 text-right">
-                      <button
-                        onClick={() => onDeleteStudent(std.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors"
-                        title="Hapus Siswa"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end space-x-1">
+                        {onNavigateTab && (
+                          <button
+                            onClick={() => onNavigateTab('student_cards')}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/20 transition-colors"
+                            title="Cetak Kartu Siswa (QR)"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onDeleteStudent(std.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                          title="Hapus Siswa"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

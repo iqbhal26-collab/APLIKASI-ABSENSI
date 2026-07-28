@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, UserRole } from '../types';
-import { ShieldCheck, UserCheck, Users, GraduationCap, X, Check } from 'lucide-react';
+import { ShieldCheck, UserCheck, Users, GraduationCap, X, Check, Moon } from 'lucide-react';
 
 interface RoleSelectorModalProps {
   isOpen: boolean;
@@ -29,10 +29,17 @@ export const RoleSelectorModal: React.FC<RoleSelectorModalProps> = ({
     },
     {
       role: 'guru',
-      title: 'Guru / Wali Kelas',
+      title: 'Wali Kelas / Guru Kelas',
       desc: 'Memeriksa kehadiran siswa per kelas per kegiatan, validasi pengajuan izin/sakit & rekap kelas.',
       icon: <UserCheck className="w-6 h-6 text-sky-400" />,
       color: 'border-sky-500/30 hover:border-sky-500 bg-sky-500/10',
+    },
+    {
+      role: 'guru_agama',
+      title: 'Guru Agama',
+      desc: 'Memantau & merekap laporan keikutsertaan siswa untuk Sholat Dzuhur Berjamaah dan Sholat Jumat.',
+      icon: <Moon className="w-6 h-6 text-emerald-400" />,
+      color: 'border-emerald-500/30 hover:border-emerald-500 bg-emerald-500/10',
     },
     {
       role: 'orang_tua',

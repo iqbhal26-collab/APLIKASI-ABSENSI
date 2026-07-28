@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student, AttendanceRecord, ActivityType, SchoolConfig } from '../../types';
-import { GraduationCap, QrCode, CheckCircle2, Moon, Calendar, CreditCard, Sparkles, AlertCircle } from 'lucide-react';
+import { GraduationCap, QrCode, CheckCircle2, Moon, Calendar, CreditCard, Sparkles, AlertCircle, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface StudentDashboardProps {
   student: Student;
@@ -225,8 +226,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </button>
             </div>
 
-            <div className="p-4 bg-white rounded-2xl inline-block shadow-lg my-2">
-              <QrCode className="w-48 h-48 text-slate-900" />
+            <div className="p-4 bg-white rounded-2xl inline-block shadow-lg my-2 border border-slate-200">
+              <QRCodeSVG value={student.qrCode || `QR-STD-${student.nisn}`} size={192} level="H" />
             </div>
 
             <div>
@@ -237,12 +238,21 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               </div>
             </div>
 
-            <button
-              onClick={() => setShowFullQr(false)}
-              className="w-full py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/10"
-            >
-              Tutup Modal QR
-            </button>
+            <div className="flex items-center space-x-2 pt-2">
+              <button
+                onClick={() => window.print()}
+                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center space-x-1.5"
+              >
+                <Printer className="w-4 h-4 text-slate-950" />
+                <span>Cetak Kartu</span>
+              </button>
+              <button
+                onClick={() => setShowFullQr(false)}
+                className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/10"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

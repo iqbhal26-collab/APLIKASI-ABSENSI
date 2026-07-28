@@ -63,6 +63,7 @@ import { ActivityManagement } from './components/admin/ActivityManagement';
 import { SystemConfig } from './components/admin/SystemConfig';
 
 import { GuruDashboard } from './components/guru/GuruDashboard';
+import { ReligionTeacherDashboard } from './components/guru_agama/ReligionTeacherDashboard';
 import { ParentDashboard } from './components/orangtua/ParentDashboard';
 import { StudentDashboard } from './components/siswa/StudentDashboard';
 
@@ -365,6 +366,7 @@ export default function App() {
     localStorage.setItem('sma_current_user', JSON.stringify(user));
     if (user.role === 'admin') setActiveTab('dashboard');
     else if (user.role === 'guru') setActiveTab('class_attendance');
+    else if (user.role === 'guru_agama') setActiveTab('religion_report');
     else if (user.role === 'orang_tua') setActiveTab('parent_child');
     else if (user.role === 'siswa') setActiveTab('student_my');
   };
@@ -728,6 +730,7 @@ export default function App() {
               onAddStudent={handleAddStudent}
               onDeleteStudent={handleDeleteStudent}
               onOpenExcelImportModal={() => setIsExcelImportOpen(true)}
+              onNavigateTab={(tab) => setActiveTab(tab)}
             />
           );
         case 'student_cards':
@@ -804,6 +807,17 @@ export default function App() {
           teacherClassHandled={currentUser.classHandled}
           onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onApprovePermit={handleApprovePermit}
+          onOpenExportModal={() => setIsExportModalOpen(true)}
+        />
+      );
+    } else if (currentUser.role === 'guru_agama') {
+      return (
+        <ReligionTeacherDashboard
+          classes={classes}
+          activities={activities}
+          students={students}
+          records={attendanceRecords}
+          onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onOpenExportModal={() => setIsExportModalOpen(true)}
         />
       );

@@ -207,6 +207,14 @@ export const initialUsers: User[] = [
     classHandled: ['cls-2'],
   },
   {
+    id: 'user-guru-agama-1',
+    username: 'ustadz_ahmad',
+    name: 'Ustadz Ahmad, S.Ag.',
+    role: 'guru_agama',
+    email: 'ahmad.fauzan@sman1edukasi.sch.id',
+    phone: '081299887766',
+  },
+  {
     id: 'user-ortu-1',
     username: 'ortu_rizky',
     name: 'Bambang Suherman',

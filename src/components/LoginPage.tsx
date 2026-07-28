@@ -11,7 +11,8 @@ import {
   ArrowRight,
   AlertCircle,
   KeyRound,
-  CheckCircle2
+  CheckCircle2,
+  Moon
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -93,7 +94,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               id: 'user-guru-1',
               username: 'siti_guru',
               name: 'Siti Rahmawati, S.Pd',
-              role: 'guru',
+              role: 'guru' as const,
               email: 'siti.rahmawati@sman1edukasi.sch.id',
               classHandled: ['cls-1'],
             };
@@ -106,6 +107,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             setIsLoading(false);
           }
         }
+        return;
+      }
+
+      // GURU AGAMA LOGIN
+      if (selectedRole === 'guru_agama') {
+        const agamaUser = users.find(u => u.role === 'guru_agama') || {
+          id: 'user-guru-agama-1',
+          username: 'ustadz_ahmad',
+          name: 'Ustadz Ahmad, S.Ag.',
+          role: 'guru_agama' as const,
+          email: 'ahmad.fauzan@sman1edukasi.sch.id',
+          phone: '081299887766',
+        };
+        onLoginSuccess(agamaUser);
         return;
       }
 
@@ -199,15 +214,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     },
     {
       id: 'guru',
-      label: 'Guru / Wali',
+      label: 'Wali Kelas',
       sublabel: 'Gunakan NIP',
       icon: <UserCheck className="w-5 h-5 text-sky-400" />,
       color: 'border-sky-500/30 hover:border-sky-500/60',
       activeBg: 'bg-sky-500/20 border-sky-500 ring-2 ring-sky-500/30',
       badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
-      credentialTitle: 'NIP Guru (Nomor Induk Pegawai)',
-      credentialPlaceholder: 'Masukkan NIP Guru',
+      credentialTitle: 'NIP Wali Kelas',
+      credentialPlaceholder: 'Masukkan NIP Guru Wali Kelas',
       credentialIcon: <CreditCard className="w-4 h-4 text-sky-400" />,
+      credentialType: 'text',
+    },
+    {
+      id: 'guru_agama',
+      label: 'Guru Agama',
+      sublabel: 'Sholat Dzuhur & Jumat',
+      icon: <Moon className="w-5 h-5 text-emerald-400" />,
+      color: 'border-emerald-500/30 hover:border-emerald-500/60',
+      activeBg: 'bg-emerald-500/20 border-emerald-500 ring-2 ring-emerald-500/30',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+      credentialTitle: 'NIP / User Guru Agama',
+      credentialPlaceholder: 'Masukkan NIP atau Klik Masuk (Demo)',
+      credentialIcon: <CreditCard className="w-4 h-4 text-emerald-400" />,
       credentialType: 'text',
     },
     {
