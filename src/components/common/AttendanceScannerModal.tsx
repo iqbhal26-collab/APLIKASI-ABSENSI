@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
-import { Student, ActivityType, AttendanceRecord, Gender } from '../../types';
-import { QrCode, X, CheckCircle2, AlertTriangle, Sparkles, User, Clock, Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Student, ActivityType, AttendanceRecord } from '../../types';
+import {
+  QrCode,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Sparkles,
+  Camera,
+  CameraOff,
+  RefreshCw,
+  Bell,
+  Volume2
+} from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface AttendanceScannerModalProps {
   isOpen: boolean;
@@ -10,6 +22,27 @@ interface AttendanceScannerModalProps {
   records?: AttendanceRecord[];
   onRecordAttendance: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
 }
+
+// Audio beep synthesizer
+const playBeep = (freq = 880, type: OscillatorType = 'sine', duration = 0.18) => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch (e) {
+    // Ignore browser autoplay policy restrictions
+  }
+};
 
 export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
   isOpen,
@@ -23,6 +56,13 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
 
   const [selectedActivityCode, setSelectedActivityCode] = useState<string>('DATANG');
   const [selectedStudentId, setSelectedStudentId] = useState<string>(students[0]?.id || '');
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [lastScannedText, setLastScannedText] = useState<string>('');
+  const [lastScanTime, setLastScanTime] = useState<number>(0);
+
   const [scanResult, setScanResult] = useState<{
     success: boolean;
     message: string;
@@ -31,17 +71,37 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     status?: string;
   } | null>(null);
 
+  const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
+  const qrContainerId = 'qr-reader-viewport';
+
   const selectedActivity = activities.find(a => a.code === selectedActivityCode) || activities[0];
   const currentStudent = students.find(s => s.id === selectedStudentId);
 
-  const handleSimulateScan = () => {
-    if (!currentStudent || !selectedActivity) return;
+  // Match scanned QR string to student record
+  const findStudentByCode = useCallback((scannedText: string): Student | undefined => {
+    const cleanText = scannedText.trim();
+    return students.find(s =>
+      s.qrCode === cleanText ||
+      s.nisn === cleanText ||
+      s.nis === cleanText ||
+      cleanText === `QR-STD-${s.nisn}` ||
+      cleanText === `QR-STD-${s.nis}` ||
+      (cleanText.includes(s.nisn) && s.nisn.length >= 4) ||
+      (s.qrCode && cleanText.includes(s.qrCode))
+    );
+  }, [students]);
+
+  // Execute attendance record logic
+  const processAttendanceForStudent = useCallback((targetStudent: Student) => {
+    if (!selectedActivity) return;
 
     // Check gender constraint (e.g. Sholat Jumat for Male students only)
-    if (selectedActivity.genderConstraint === 'L' && currentStudent.gender !== 'L') {
+    if (selectedActivity.genderConstraint === 'L' && targetStudent.gender !== 'L') {
+      playBeep(350, 'sawtooth', 0.3);
       setScanResult({
         success: false,
-        message: `PERINGATAN: ${selectedActivity.name} khusus untuk Siswa Laki-Laki. ${currentStudent.name} (Perempuan) tidak diwajibkan absensi Sholat Jumat.`,
+        message: `PERINGATAN: ${selectedActivity.name} khusus untuk Siswa Laki-Laki. ${targetStudent.name} (Perempuan) tidak diwajibkan absensi.`,
+        studentName: targetStudent.name,
       });
       return;
     }
@@ -49,18 +109,19 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
 
-    // Anti-duplicate check: check if student has already recorded attendance for this activity today
+    // Anti-duplicate check
     const existing = records.find(
-      r => r.studentId === currentStudent.id &&
+      r => r.studentId === targetStudent.id &&
            r.date === todayStr &&
            r.activityCode === selectedActivity.code
     );
 
     if (existing) {
+      playBeep(400, 'sawtooth', 0.3);
       setScanResult({
         success: false,
-        message: `PERINGATAN / GAGAL: Siswa '${currentStudent.name}' SUDAH ABSEN untuk kegiatan '${selectedActivity.name}' hari ini pada pukul ${existing.time} WIB (Status: ${existing.status.toUpperCase()}). Data absensi tidak bisa dobel!`,
-        studentName: currentStudent.name,
+        message: `PERINGATAN / GAGAL: Siswa '${targetStudent.name}' SUDAH ABSEN untuk '${selectedActivity.name}' hari ini pukul ${existing.time} WIB. Presensi tidak bisa dobel!`,
+        studentName: targetStudent.name,
         time: existing.time,
         status: existing.status,
       });
@@ -70,17 +131,16 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     const timeStr = now.toTimeString().split(' ')[0]; // HH:mm:ss
     const hourMin = timeStr.substring(0, 5); // HH:mm
 
-    // Simple lateness check vs end time
     let status: 'hadir' | 'terlambat' = 'hadir';
     if (selectedActivity.endTime && hourMin > selectedActivity.endTime) {
       status = 'terlambat';
     }
 
     const isSuccess = onRecordAttendance({
-      studentId: currentStudent.id,
-      studentName: currentStudent.name,
-      className: currentStudent.className,
-      gender: currentStudent.gender,
+      studentId: targetStudent.id,
+      studentName: targetStudent.name,
+      className: targetStudent.className,
+      gender: targetStudent.gender,
       date: todayStr,
       activityId: selectedActivity.id,
       activityCode: selectedActivity.code,
@@ -92,23 +152,154 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     });
 
     if (isSuccess === false) {
+      playBeep(400, 'sawtooth', 0.3);
       setScanResult({
         success: false,
-        message: `PERINGATAN: Absensi gagal karena data absensi untuk siswa '${currentStudent.name}' pada sesi '${selectedActivity.name}' sudah ada. Presensi tidak dapat diulang!`,
-        studentName: currentStudent.name,
+        message: `PERINGATAN: Absensi gagal karena data absensi untuk '${targetStudent.name}' sudah ada.`,
+        studentName: targetStudent.name,
         time: timeStr,
         status: status,
       });
       return;
     }
 
+    // Success Sound & Result
+    playBeep(987.77, 'sine', 0.2); // B5 tone
     setScanResult({
       success: true,
-      message: `PRESENSI BERHASIL DICATAT! Notifikasi push telah dikirimkan ke HP Orang Tua (${currentStudent.parentName}).`,
-      studentName: currentStudent.name,
+      message: `PRESENSI BERHASIL DICATAT! Notifikasi WhatsApp/Push telah dikirim ke Orang Tua (${targetStudent.parentName}).`,
+      studentName: targetStudent.name,
       time: timeStr,
       status: status,
     });
+  }, [selectedActivity, records, onRecordAttendance]);
+
+  // Handle successful scan from HTML5 QR Reader
+  const handleScanSuccess = useCallback((decodedText: string) => {
+    const now = Date.now();
+    // Debounce exact same scan within 3 seconds
+    if (decodedText === lastScannedText && (now - lastScanTime) < 3000) {
+      return;
+    }
+
+    setLastScannedText(decodedText);
+    setLastScanTime(now);
+
+    const matchedStudent = findStudentByCode(decodedText);
+
+    if (!matchedStudent) {
+      playBeep(300, 'square', 0.25);
+      setScanResult({
+        success: false,
+        message: `QR CODE TIDAK DIKENALI: Kode "${decodedText}" tidak terdaftar dalam database siswa sekolah.`
+      });
+      return;
+    }
+
+    processAttendanceForStudent(matchedStudent);
+  }, [findStudentByCode, lastScannedText, lastScanTime, processAttendanceForStudent]);
+
+  // Handle manual test button
+  const handleSimulateScan = () => {
+    if (!currentStudent) return;
+    processAttendanceForStudent(currentStudent);
+  };
+
+  // Initialize and control HTML5 QR Code scanner
+  useEffect(() => {
+    let html5Qrcode: Html5Qrcode | null = null;
+    let isSubscribed = true;
+
+    if (isOpen && isCameraActive) {
+      setCameraError(null);
+      setIsScanning(true);
+
+      const startScanner = async () => {
+        try {
+          // Ensure DOM element is present
+          const element = document.getElementById(qrContainerId);
+          if (!element) return;
+
+          html5Qrcode = new Html5Qrcode(qrContainerId);
+          html5QrcodeRef.current = html5Qrcode;
+
+          await html5Qrcode.start(
+            { facingMode: facingMode },
+            {
+              fps: 10,
+              qrbox: { width: 200, height: 200 },
+              aspectRatio: 1.0,
+            },
+            (decodedText) => {
+              if (isSubscribed) {
+                handleScanSuccess(decodedText);
+              }
+            },
+            () => {
+              // Ignore frame-by-frame scanning errors
+            }
+          );
+        } catch (err: any) {
+          console.warn('Primary camera start failed:', err);
+          if (!isSubscribed) return;
+
+          // Try fallback to standard camera if environment mode failed
+          try {
+            if (html5Qrcode) {
+              await html5Qrcode.start(
+                { facingMode: 'user' },
+                { fps: 10, qrbox: { width: 200, height: 200 } },
+                (decodedText) => {
+                  if (isSubscribed) {
+                    handleScanSuccess(decodedText);
+                  }
+                },
+                () => {}
+              );
+              return;
+            }
+          } catch (fallbackErr: any) {
+            console.error('All camera attempts failed:', fallbackErr);
+            if (isSubscribed) {
+              setCameraError('Kamera tidak aktif atau izin kamera ditolak. Pastikan memberikan izin kamera pada browser.');
+              setIsScanning(false);
+            }
+          }
+        }
+      };
+
+      // Slight delay to ensure modal DOM is fully rendered
+      const timeoutId = setTimeout(startScanner, 150);
+
+      return () => {
+        isSubscribed = false;
+        clearTimeout(timeoutId);
+        if (html5QrcodeRef.current) {
+          if (html5QrcodeRef.current.isScanning) {
+            html5QrcodeRef.current.stop().catch(() => {}).finally(() => {
+              html5QrcodeRef.current?.clear();
+            });
+          } else {
+            html5QrcodeRef.current.clear();
+          }
+        }
+      };
+    } else {
+      setIsScanning(false);
+      if (html5QrcodeRef.current) {
+        if (html5QrcodeRef.current.isScanning) {
+          html5QrcodeRef.current.stop().catch(() => {}).finally(() => {
+            html5QrcodeRef.current?.clear();
+          });
+        } else {
+          html5QrcodeRef.current.clear();
+        }
+      }
+    }
+  }, [isOpen, isCameraActive, facingMode, handleScanSuccess]);
+
+  const toggleCameraFacing = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
   };
 
   return (
@@ -123,7 +314,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
             <div>
               <h3 className="font-bold text-lg text-white">Kios Scan QR Kartu Siswa</h3>
               <p className="text-xs text-slate-300">
-                Tap / Scan QR pada Kartu Pelajar untuk Presensi Otomatis
+                Pemindai Kamera Aktif Real-time untuk Presensi Otomatis
               </p>
             </div>
           </div>
@@ -132,7 +323,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
               setScanResult(null);
               onClose();
             }}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -155,7 +346,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
                       setSelectedActivityCode(act.code);
                       setScanResult(null);
                     }}
-                    className={`p-2.5 rounded-xl border text-center transition-all ${
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-bold shadow-md'
                         : 'border-white/10 hover:bg-white/10 text-slate-300 font-medium'
@@ -181,33 +372,100 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
             )}
           </div>
 
-          {/* Student Scanner Simulation Frame */}
-          <div className="bg-black/40 rounded-2xl p-5 text-white relative overflow-hidden border border-white/10">
-            {/* Viewfinder Grid Effect */}
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:16px_16px]" />
-
-            <div className="relative z-10 flex flex-col items-center text-center space-y-3">
-              <div className="relative w-32 h-32 rounded-2xl border-2 border-dashed border-emerald-400/80 flex flex-col items-center justify-center bg-white/5 p-3 shadow-inner">
-                <QrCode className="w-16 h-16 text-emerald-400 animate-pulse" />
-                <span className="text-[10px] text-emerald-300 font-semibold mt-1">CAMERA SCANNER</span>
+          {/* Active Camera Frame & Scanner Area */}
+          <div className="bg-black/60 rounded-2xl p-4 border border-white/10 relative overflow-hidden flex flex-col items-center">
+            {/* Camera Controls Bar */}
+            <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
+              <div className="flex items-center space-x-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${isScanning ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`} />
+                <span className="font-bold text-slate-200">
+                  {isScanning ? 'Kamera Pemindai Aktif' : 'Kamera Nonaktif'}
+                </span>
               </div>
 
-              <p className="text-xs text-slate-300 max-w-sm">
-                Arahkan QR Code Kartu Pelajar ke scanner atau pilih nama siswa di bawah untuk melakukan tes presensi.
-              </p>
+              <div className="flex items-center space-x-2">
+                {isCameraActive && (
+                  <button
+                    type="button"
+                    onClick={toggleCameraFacing}
+                    className="p-1.5 bg-white/10 hover:bg-white/20 text-slate-200 rounded-lg flex items-center space-x-1 text-xs transition-all cursor-pointer"
+                    title="Beralih Kamera Depan / Belakang"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Ubah Kamera</span>
+                  </button>
+                )}
 
-              {/* Student Dropdown for manual simulation */}
-              <div className="w-full max-w-md pt-2">
-                <label className="block text-[11px] text-slate-300 text-left font-semibold mb-1">
-                  Pilih Siswa (Simulasi Tap Kartu):
-                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCameraActive(!isCameraActive)}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition-all cursor-pointer ${
+                    isCameraActive
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
+                      : 'bg-emerald-500 text-slate-950 hover:bg-emerald-400'
+                  }`}
+                >
+                  {isCameraActive ? (
+                    <>
+                      <CameraOff className="w-3.5 h-3.5" />
+                      <span>Matikan Kamera</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Aktifkan Kamera</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Viewport for HTML5 QR Code Camera Stream */}
+            {isCameraActive ? (
+              <div className="w-full flex flex-col items-center relative">
+                <div
+                  id={qrContainerId}
+                  className="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-emerald-500/50 bg-black min-h-[220px] shadow-inner relative"
+                />
+
+                {cameraError && (
+                  <div className="mt-3 p-3 bg-rose-500/20 border border-rose-500/40 rounded-xl text-rose-200 text-xs text-center space-y-2 w-full max-w-sm">
+                    <p>{cameraError}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCameraActive(false);
+                        setTimeout(() => setIsCameraActive(true), 200);
+                      }}
+                      className="px-3 py-1 bg-rose-500 hover:bg-rose-400 text-white font-bold rounded-lg cursor-pointer"
+                    >
+                      Coba Sambung Ulang Kamera
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="w-full max-w-sm h-48 rounded-2xl border-2 border-dashed border-slate-700 bg-white/5 flex flex-col items-center justify-center p-4 text-center">
+                <CameraOff className="w-10 h-10 text-slate-500 mb-2" />
+                <p className="text-xs text-slate-400">
+                  Kamera pemindai dimatikan. Klik tombol "Aktifkan Kamera" di atas untuk memindai QR Code via webcam/kamera HP.
+                </p>
+              </div>
+            )}
+
+            {/* Manual Selection Fallback / Simulation */}
+            <div className="w-full pt-4 mt-4 border-t border-white/10 space-y-2">
+              <label className="block text-[11px] text-slate-300 text-left font-semibold">
+                Atau Pilih Siswa Secara Manual (Simulasi Tap Kartu):
+              </label>
+              <div className="flex flex-col sm:flex-row items-center gap-2">
                 <select
                   value={selectedStudentId}
                   onChange={(e) => {
                     setSelectedStudentId(e.target.value);
                     setScanResult(null);
                   }}
-                  className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   {students.map((std) => (
                     <option key={std.id} value={std.id}>
@@ -215,21 +473,20 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
                     </option>
                   ))}
                 </select>
-              </div>
 
-              {/* Tap Button */}
-              <button
-                type="button"
-                onClick={handleSimulateScan}
-                className="w-full max-w-md mt-2 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center space-x-2 transition-all active:scale-95"
-              >
-                <Sparkles className="w-4 h-4 text-slate-950" />
-                <span>TAP / SCAN KARTU SEKARANG</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handleSimulateScan}
+                  className="w-full sm:w-auto shrink-0 py-2 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md flex items-center justify-center space-x-1.5 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>TAP KARTU</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Scan Result Feedback */}
+          {/* Scan Result Alert Feedback */}
           {scanResult && (
             <div
               className={`p-4 rounded-2xl border text-sm animate-fadeIn ${
@@ -244,7 +501,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
                 ) : (
                   <AlertTriangle className="w-6 h-6 text-rose-400 shrink-0 mt-0.5" />
                 )}
-                <div className="space-y-1">
+                <div className="space-y-1 w-full">
                   <div className="font-bold text-base text-white">
                     {scanResult.success ? 'PRESENSI BERHASIL' : 'PRESENSI GAGAL'}
                   </div>

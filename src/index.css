@@ -46,9 +46,23 @@ body {
     width: 100% !important;
   }
 
+  .print-area {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-card-item {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
   @page {
-    size: auto;
-    margin: 8mm;
+    size: A4 portrait;
+    margin: 10mm;
   }
 }
 
