@@ -11,8 +11,7 @@ import {
   ArrowRight,
   AlertCircle,
   KeyRound,
-  CheckCircle2,
-  Sparkles
+  CheckCircle2
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -46,7 +45,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
 
     if (!credential) {
       if (selectedRole === 'admin') {
-        setErrorMessage('Masukkan password admin (Default: 26)');
+        setErrorMessage('Masukkan password admin');
       } else if (selectedRole === 'guru') {
         setErrorMessage('Masukkan NIP guru (Nomor Induk Pegawai)');
       } else if (selectedRole === 'siswa') {
@@ -72,7 +71,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           };
           onLoginSuccess(adminUser);
         } else {
-          setErrorMessage('Password admin salah! (Password yang benar: 26)');
+          setErrorMessage('Password admin salah!');
           setIsLoading(false);
         }
         return;
@@ -103,7 +102,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               name: `Guru (NIP: ${credential})`,
             });
           } else {
-            setErrorMessage('NIP tidak ditemukan! Gunakan contoh NIP demo: 198501012010011001');
+            setErrorMessage('NIP tidak ditemukan!');
             setIsLoading(false);
           }
         }
@@ -134,7 +133,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             onLoginSuccess(studentUser);
           }
         } else {
-          setErrorMessage(`NISN '${credential}' tidak ditemukan di database siswa. Coba NISN: 0078921001`);
+          setErrorMessage(`NISN '${credential}' tidak ditemukan di database siswa.`);
           setIsLoading(false);
         }
         return;
@@ -164,19 +163,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             onLoginSuccess(ortuUser);
           }
         } else {
-          setErrorMessage(`NISN Anak '${credential}' tidak ditemukan. Coba NISN: 0078921001`);
+          setErrorMessage(`NISN Anak '${credential}' tidak ditemukan.`);
           setIsLoading(false);
         }
         return;
       }
     }, 400);
-  };
-
-  // Helper chips for instant testing
-  const fillCredential = (role: UserRole, val: string) => {
-    setSelectedRole(role);
-    setInputCredential(val);
-    setErrorMessage(null);
   };
 
   const roleTabs: {
@@ -195,13 +187,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     {
       id: 'admin',
       label: 'Admin',
-      sublabel: 'Password 26',
+      sublabel: 'Akses Admin',
       icon: <ShieldCheck className="w-5 h-5 text-purple-400" />,
       color: 'border-purple-500/30 hover:border-purple-500/60',
       activeBg: 'bg-purple-500/20 border-purple-500 ring-2 ring-purple-500/30',
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
       credentialTitle: 'Password Admin',
-      credentialPlaceholder: 'Masukkan password (Default: 26)',
+      credentialPlaceholder: 'Masukkan password admin',
       credentialIcon: <Lock className="w-4 h-4 text-purple-400" />,
       credentialType: 'password',
     },
@@ -214,7 +206,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       activeBg: 'bg-sky-500/20 border-sky-500 ring-2 ring-sky-500/30',
       badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
       credentialTitle: 'NIP Guru (Nomor Induk Pegawai)',
-      credentialPlaceholder: 'Masukkan NIP (cth: 198501012010011001)',
+      credentialPlaceholder: 'Masukkan NIP Guru',
       credentialIcon: <CreditCard className="w-4 h-4 text-sky-400" />,
       credentialType: 'text',
     },
@@ -227,7 +219,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       activeBg: 'bg-amber-500/20 border-amber-500 ring-2 ring-amber-500/30',
       badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
       credentialTitle: 'NISN Siswa (Nomor Induk Siswa Nasional)',
-      credentialPlaceholder: 'Masukkan 10 digit NISN (cth: 0078921001)',
+      credentialPlaceholder: 'Masukkan NISN Siswa',
       credentialIcon: <KeyRound className="w-4 h-4 text-amber-400" />,
       credentialType: 'text',
     },
@@ -240,7 +232,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       activeBg: 'bg-emerald-500/20 border-emerald-500 ring-2 ring-emerald-500/30',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
       credentialTitle: 'NISN Anak / Siswa',
-      credentialPlaceholder: 'Masukkan NISN anak (cth: 0078921001)',
+      credentialPlaceholder: 'Masukkan NISN Anak',
       credentialIcon: <KeyRound className="w-4 h-4 text-emerald-400" />,
       credentialType: 'text',
     }
@@ -375,76 +367,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
               )}
             </button>
           </form>
-
-          {/* Instant Quick Demo Credentials Section */}
-          <div className="pt-4 border-t border-white/10 space-y-2.5">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span className="font-semibold text-slate-300">Klik Cepat Kredensial Uji Coba (Demo):</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {/* Admin Demo */}
-              <button
-                type="button"
-                onClick={() => fillCredential('admin', '26')}
-                className="p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-200 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <div className="font-bold text-[11px] text-purple-300">🔑 Admin Password</div>
-                  <div className="font-mono text-xs text-white">Password: 26</div>
-                </div>
-                <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded text-purple-300 group-hover:bg-purple-500 group-hover:text-slate-950 font-bold transition-colors">
-                  Gunakan
-                </span>
-              </button>
-
-              {/* Guru Demo */}
-              <button
-                type="button"
-                onClick={() => fillCredential('guru', '198501012010011001')}
-                className="p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-200 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <div className="font-bold text-[11px] text-sky-300">👨‍🏫 Guru / Wali Kelas</div>
-                  <div className="font-mono text-xs text-white">NIP: 198501012010011001</div>
-                </div>
-                <span className="text-[10px] bg-sky-500/20 px-2 py-0.5 rounded text-sky-300 group-hover:bg-sky-500 group-hover:text-slate-950 font-bold transition-colors">
-                  Gunakan
-                </span>
-              </button>
-
-              {/* Siswa Demo */}
-              <button
-                type="button"
-                onClick={() => fillCredential('siswa', '0078921001')}
-                className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-200 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <div className="font-bold text-[11px] text-amber-300">🎓 Siswa (M. Rizky)</div>
-                  <div className="font-mono text-xs text-white">NISN: 0078921001</div>
-                </div>
-                <span className="text-[10px] bg-amber-500/20 px-2 py-0.5 rounded text-amber-300 group-hover:bg-amber-500 group-hover:text-slate-950 font-bold transition-colors">
-                  Gunakan
-                </span>
-              </button>
-
-              {/* Ortu Demo */}
-              <button
-                type="button"
-                onClick={() => fillCredential('orang_tua', '0078921001')}
-                className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <div className="font-bold text-[11px] text-emerald-300">👨‍👩‍👧 Orang Tua Siswa</div>
-                  <div className="font-mono text-xs text-white">NISN Anak: 0078921001</div>
-                </div>
-                <span className="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300 group-hover:bg-emerald-500 group-hover:text-slate-950 font-bold transition-colors">
-                  Gunakan
-                </span>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer info */}
