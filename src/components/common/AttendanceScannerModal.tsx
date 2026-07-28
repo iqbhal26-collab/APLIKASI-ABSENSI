@@ -23,24 +23,91 @@ interface AttendanceScannerModalProps {
   onRecordAttendance: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
 }
 
-// Audio beep synthesizer
-const playBeep = (freq = 880, type: OscillatorType = 'sine', duration = 0.18) => {
+// Audio & Voice Speech Synthesizer for Attendance Warnings
+const playWarningAlert = (studentName?: string, customText?: string) => {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    gain.gain.setValueAtTime(0.25, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + duration);
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      
+      // Dual-tone warning buzzer sound (Descending warning frequency)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(440, now);
+      osc1.frequency.exponentialRampToValueAtTime(220, now + 0.18);
+      gain1.gain.setValueAtTime(0.35, now);
+      gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.18);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(320, now + 0.2);
+      osc2.frequency.exponentialRampToValueAtTime(140, now + 0.42);
+      gain2.gain.setValueAtTime(0.4, now + 0.2);
+      gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.2);
+      osc2.stop(now + 0.42);
+    }
   } catch (e) {
-    // Ignore browser autoplay policy restrictions
+    console.warn('Audio warning failed', e);
+  }
+
+  // Indonesian Text-To-Speech (Speech Synthesis) for loud audible notification
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+      const spokenMsg = customText || (studentName
+        ? `Peringatan! Siswa ${studentName} sudah melakukan presensi hari ini.`
+        : 'Peringatan! Siswa sudah absen.');
+      const utterance = new SpeechSynthesisUtterance(spokenMsg);
+      utterance.lang = 'id-ID';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('Speech synthesis error', err);
+    }
+  }
+};
+
+const playSuccessAlert = (studentName?: string) => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(1174.66, now + 0.1);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+  } catch (e) {}
+
+  if ('speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+      const spokenMsg = studentName ? `Presensi berhasil, ${studentName}` : 'Presensi berhasil';
+      const utterance = new SpeechSynthesisUtterance(spokenMsg);
+      utterance.lang = 'id-ID';
+      utterance.rate = 1.05;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {}
   }
 };
 
@@ -97,7 +164,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
 
     // Check gender constraint (e.g. Sholat Jumat for Male students only)
     if (selectedActivity.genderConstraint === 'L' && targetStudent.gender !== 'L') {
-      playBeep(350, 'sawtooth', 0.3);
+      playWarningAlert(targetStudent.name, `Peringatan! ${selectedActivity.name} khusus untuk Siswa Laki-Laki.`);
       setScanResult({
         success: false,
         message: `PERINGATAN: ${selectedActivity.name} khusus untuk Siswa Laki-Laki. ${targetStudent.name} (Perempuan) tidak diwajibkan absensi.`,
@@ -117,7 +184,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     );
 
     if (existing) {
-      playBeep(400, 'sawtooth', 0.3);
+      playWarningAlert(targetStudent.name, `Peringatan! Siswa ${targetStudent.name} sudah absen ${selectedActivity.name} hari ini.`);
       setScanResult({
         success: false,
         message: `PERINGATAN / GAGAL: Siswa '${targetStudent.name}' SUDAH ABSEN untuk '${selectedActivity.name}' hari ini pukul ${existing.time} WIB. Presensi tidak bisa dobel!`,
@@ -152,7 +219,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     });
 
     if (isSuccess === false) {
-      playBeep(400, 'sawtooth', 0.3);
+      playWarningAlert(targetStudent.name, `Peringatan! Siswa ${targetStudent.name} sudah absen.`);
       setScanResult({
         success: false,
         message: `PERINGATAN: Absensi gagal karena data absensi untuk '${targetStudent.name}' sudah ada.`,
@@ -164,7 +231,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     }
 
     // Success Sound & Result
-    playBeep(987.77, 'sine', 0.2); // B5 tone
+    playSuccessAlert(targetStudent.name);
     setScanResult({
       success: true,
       message: `PRESENSI BERHASIL DICATAT! Notifikasi WhatsApp/Push telah dikirim ke Orang Tua (${targetStudent.parentName}).`,
@@ -188,7 +255,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     const matchedStudent = findStudentByCode(decodedText);
 
     if (!matchedStudent) {
-      playBeep(300, 'square', 0.25);
+      playWarningAlert(undefined, 'Peringatan! Kode QR tidak terdaftar dalam database sekolah.');
       setScanResult({
         success: false,
         message: `QR CODE TIDAK DIKENALI: Kode "${decodedText}" tidak terdaftar dalam database siswa sekolah.`
