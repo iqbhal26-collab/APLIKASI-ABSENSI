@@ -33,6 +33,7 @@ import {
   fetchAllFromSupabase,
   seedSupabaseData,
   dbAddStudent,
+  dbBatchAddStudents,
   dbDeleteStudent,
   dbRecordAttendance,
   dbSubmitPermit,
@@ -51,6 +52,8 @@ import { RoleSelectorModal } from './components/RoleSelectorModal';
 import { AttendanceScannerModal } from './components/common/AttendanceScannerModal';
 import { NotificationDrawer } from './components/common/NotificationDrawer';
 import { ReportExportModal } from './components/common/ReportExportModal';
+import { ExcelImportModal } from './components/admin/ExcelImportModal';
+import { ParsedStudentRow, ParsedTeacherRow } from './lib/excelTemplates';
 
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ClassManagement } from './components/admin/ClassManagement';
@@ -153,6 +156,7 @@ export default function App() {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExcelImportOpen, setIsExcelImportOpen] = useState(false);
 
   // Supabase sync status state
   const [syncStatus, setSyncStatus] = useState<{
@@ -403,6 +407,141 @@ export default function App() {
     dbAddStudent(schoolConfig, created);
   };
 
+  // Bulk Import Students from Excel
+  const handleImportStudentsBulk = (
+    parsedStudents: ParsedStudentRow[],
+    autoCreateClasses: boolean
+  ) => {
+    let newClassesAdded: SchoolClass[] = [];
+    const currentClassesMap = new Map<string, SchoolClass>(classes.map(c => [c.name.toLowerCase().trim(), { ...c }]));
+
+    const newStudentList: Student[] = [];
+
+    parsedStudents.forEach((p, idx) => {
+      const clsNameKey = p.className.toLowerCase().trim();
+      let matchedClass = currentClassesMap.get(clsNameKey);
+
+      if (!matchedClass && autoCreateClasses) {
+        const newClsId = `cls-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        let grade: 'X' | 'XI' | 'XII' = 'X';
+        if (p.className.toUpperCase().startsWith('XII')) grade = 'XII';
+        else if (p.className.toUpperCase().startsWith('XI')) grade = 'XI';
+
+        let major: 'IPA' | 'IPS' | 'BAHASA' | 'UMUM' = 'IPA';
+        if (p.className.toUpperCase().includes('IPS')) major = 'IPS';
+        else if (p.className.toUpperCase().includes('BAHASA')) major = 'BAHASA';
+
+        matchedClass = {
+          id: newClsId,
+          name: p.className,
+          grade,
+          major,
+          homeroomTeacherId: '',
+          homeroomTeacherName: 'Belum Ditentukan',
+          studentCount: 1,
+        };
+        currentClassesMap.set(clsNameKey, matchedClass);
+        newClassesAdded.push(matchedClass);
+      } else if (matchedClass) {
+        matchedClass.studentCount += 1;
+        currentClassesMap.set(clsNameKey, matchedClass);
+      }
+
+      const stdId = `std-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`;
+      const newStd: Student = {
+        id: stdId,
+        nis: p.nis,
+        nisn: p.nisn,
+        name: p.name,
+        gender: p.gender,
+        classId: matchedClass?.id || classes[0]?.id || 'cls-1',
+        className: p.className,
+        parentId: `user-ortu-${stdId}`,
+        parentName: p.parentName || 'Orang Tua Siswa',
+        parentPhone: p.parentPhone || '081200000000',
+        qrCode: `QR-STD-${p.nis}`,
+      };
+      newStudentList.push(newStd);
+    });
+
+    if (newStudentList.length === 0) return;
+
+    // Update state
+    setStudents(prev => [...prev, ...newStudentList]);
+    setClasses(Array.from(currentClassesMap.values()));
+    dbUpdateClasses(schoolConfig, Array.from(currentClassesMap.values()));
+
+    // Sync students to Supabase
+    dbBatchAddStudents(schoolConfig, newStudentList);
+  };
+
+  // Bulk Import Teachers / Wali Kelas from Excel
+  const handleImportTeachersBulk = (
+    parsedTeachers: ParsedTeacherRow[],
+    autoCreateClasses: boolean
+  ) => {
+    let updatedClassesMap = new Map<string, SchoolClass>(classes.map(c => [c.name.toLowerCase().trim(), { ...c }]));
+    const newUsersList: User[] = [];
+
+    parsedTeachers.forEach((t, idx) => {
+      const teacherUserId = `user-guru-${Date.now()}-${idx}`;
+      const clsNameKey = t.className ? t.className.toLowerCase().trim() : '';
+
+      let handledClassIds: string[] = [];
+
+      if (clsNameKey) {
+        let matchedClass = updatedClassesMap.get(clsNameKey);
+        if (!matchedClass && autoCreateClasses) {
+          const newClsId = `cls-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          let grade: 'X' | 'XI' | 'XII' = 'X';
+          if (t.className.toUpperCase().startsWith('XII')) grade = 'XII';
+          else if (t.className.toUpperCase().startsWith('XI')) grade = 'XI';
+
+          let major: 'IPA' | 'IPS' | 'BAHASA' | 'UMUM' = 'IPA';
+          if (t.className.toUpperCase().includes('IPS')) major = 'IPS';
+
+          matchedClass = {
+            id: newClsId,
+            name: t.className,
+            grade,
+            major,
+            homeroomTeacherId: teacherUserId,
+            homeroomTeacherName: t.name,
+            studentCount: 0,
+          };
+          updatedClassesMap.set(clsNameKey, matchedClass);
+        } else if (matchedClass) {
+          matchedClass.homeroomTeacherId = teacherUserId;
+          matchedClass.homeroomTeacherName = t.name;
+          updatedClassesMap.set(clsNameKey, matchedClass);
+        }
+
+        if (matchedClass) {
+          handledClassIds.push(matchedClass.id);
+        }
+      }
+
+      const newTeacherUser: User = {
+        id: teacherUserId,
+        username: t.username || `guru_${Date.now()}_${idx}`,
+        name: t.name,
+        role: 'guru',
+        email: t.email || `${t.username}@sekolah.sch.id`,
+        phone: t.phone || '081200000000',
+        classHandled: handledClassIds,
+      };
+
+      newUsersList.push(newTeacherUser);
+    });
+
+    if (newUsersList.length === 0) return;
+
+    setUsers(prev => [...prev, ...newUsersList]);
+    setClasses(Array.from(updatedClassesMap.values()));
+
+    dbUpdateClasses(schoolConfig, Array.from(updatedClassesMap.values()));
+  };
+
   // Delete student
   const handleDeleteStudent = (id: string) => {
     setStudents(prev => prev.filter(s => s.id !== id));
@@ -527,6 +666,7 @@ export default function App() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenScanner={() => setIsScannerOpen(true)}
               onOpenExportModal={() => setIsExportModalOpen(true)}
+              onOpenExcelImportModal={() => setIsExcelImportOpen(true)}
             />
           );
         case 'classes':
@@ -537,6 +677,7 @@ export default function App() {
               students={students}
               onSaveClass={handleSaveClass}
               onDeleteClass={handleDeleteClass}
+              onOpenExcelImportModal={() => setIsExcelImportOpen(true)}
             />
           );
         case 'users':
@@ -546,6 +687,7 @@ export default function App() {
               classes={classes}
               onAddStudent={handleAddStudent}
               onDeleteStudent={handleDeleteStudent}
+              onOpenExcelImportModal={() => setIsExcelImportOpen(true)}
             />
           );
         case 'student_cards':
@@ -787,6 +929,15 @@ export default function App() {
         attendanceRecords={attendanceRecords}
         students={students}
         schoolConfig={schoolConfig}
+      />
+
+      {/* Excel Import Center Modal */}
+      <ExcelImportModal
+        isOpen={isExcelImportOpen}
+        onClose={() => setIsExcelImportOpen(false)}
+        classes={classes}
+        onImportStudents={handleImportStudentsBulk}
+        onImportTeachers={handleImportTeachersBulk}
       />
     </div>
   );

@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { Student, SchoolClass, Gender } from '../../types';
-import { Search, Plus, UserPlus, Filter, Trash2, Edit, GraduationCap, Phone, QrCode } from 'lucide-react';
+import { Search, Plus, UserPlus, Filter, Trash2, Edit, GraduationCap, Phone, QrCode, FileSpreadsheet, Download } from 'lucide-react';
+import { downloadStudentTemplate, downloadTeacherTemplate } from '../../lib/excelTemplates';
 
 interface UserManagementProps {
   students: Student[];
   classes: SchoolClass[];
   onAddStudent: (student: Omit<Student, 'id' | 'qrCode'>) => void;
   onDeleteStudent: (id: string) => void;
+  onOpenExcelImportModal?: () => void;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({
   students,
   classes,
   onAddStudent,
-  onDeleteStudent
+  onDeleteStudent,
+  onOpenExcelImportModal
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
@@ -67,7 +70,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg">
         <div>
           <h2 className="text-xl font-bold text-white">Kelola Data Siswa & Wali Murid</h2>
           <p className="text-xs text-slate-300 mt-1">
@@ -75,13 +78,34 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all shrink-0 active:scale-95"
-        >
-          <UserPlus className="w-4 h-4 text-slate-950" />
-          <span>Tambah Siswa Baru</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenExcelImportModal && (
+            <button
+              onClick={onOpenExcelImportModal}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-teal-500/20 transition-all active:scale-95"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-slate-950" />
+              <span>Import Excel (.xlsx)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => downloadStudentTemplate()}
+            className="flex items-center space-x-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs rounded-xl transition-all"
+            title="Unduh Format Template Excel Data Siswa"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Template Siswa</span>
+          </button>
+
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+          >
+            <UserPlus className="w-4 h-4 text-slate-950" />
+            <span>Tambah Manual</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}

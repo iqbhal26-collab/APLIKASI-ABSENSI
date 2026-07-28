@@ -14,8 +14,11 @@ import {
   X,
   GraduationCap,
   Sparkles,
-  BookOpen
+  BookOpen,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
+import { downloadTeacherTemplate } from '../../lib/excelTemplates';
 
 interface ClassManagementProps {
   classes: SchoolClass[];
@@ -23,6 +26,7 @@ interface ClassManagementProps {
   students: Student[];
   onSaveClass: (updatedClass: SchoolClass, oldClassName?: string) => void;
   onDeleteClass: (classId: string) => void;
+  onOpenExcelImportModal?: () => void;
 }
 
 export const ClassManagement: React.FC<ClassManagementProps> = ({
@@ -30,7 +34,8 @@ export const ClassManagement: React.FC<ClassManagementProps> = ({
   users,
   students,
   onSaveClass,
-  onDeleteClass
+  onDeleteClass,
+  onOpenExcelImportModal
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string>('ALL');
@@ -128,7 +133,7 @@ export const ClassManagement: React.FC<ClassManagementProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg">
         <div>
           <div className="flex items-center space-x-2">
             <School className="w-5 h-5 text-emerald-400" />
@@ -139,13 +144,34 @@ export const ClassManagement: React.FC<ClassManagementProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAddModal}
-          className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all shrink-0 active:scale-95 cursor-pointer"
-        >
-          <Plus className="w-4 h-4 text-slate-950" />
-          <span>Tambah Kelas Baru</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {onOpenExcelImportModal && (
+            <button
+              onClick={onOpenExcelImportModal}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-teal-500/20 transition-all active:scale-95 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-slate-950" />
+              <span>Import Wali Kelas (Excel)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => downloadTeacherTemplate()}
+            className="flex items-center space-x-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            title="Unduh Format Template Excel Wali Kelas"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            <span>Template Wali Kelas</span>
+          </button>
+
+          <button
+            onClick={handleOpenAddModal}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 text-slate-950" />
+            <span>Tambah Kelas Baru</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Controls */}

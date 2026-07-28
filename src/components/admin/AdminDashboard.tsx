@@ -25,6 +25,7 @@ interface AdminDashboardProps {
   onNavigateTab: (tabId: string) => void;
   onOpenScanner: () => void;
   onOpenExportModal: () => void;
+  onOpenExcelImportModal?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -35,7 +36,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   permits,
   onNavigateTab,
   onOpenScanner,
-  onOpenExportModal
+  onOpenExportModal,
+  onOpenExcelImportModal
 }) => {
   const todayStr = new Date().toISOString().split('T')[0];
   const todayRecords = records.filter(r => r.date === todayStr);
@@ -70,6 +72,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onOpenExcelImportModal && (
+              <button
+                onClick={onOpenExcelImportModal}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 font-bold text-xs text-slate-950 shadow-lg shadow-teal-500/20 transition-all flex items-center space-x-2 active:scale-95 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-slate-950" />
+                <span>Import Excel (.xlsx)</span>
+              </button>
+            )}
             <button
               onClick={onOpenScanner}
               className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 font-bold text-xs text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 active:scale-95"

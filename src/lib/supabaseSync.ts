@@ -427,6 +427,31 @@ export async function dbAddStudent(config: SchoolConfig, student: Student) {
   }
 }
 
+export async function dbBatchAddStudents(config: SchoolConfig, students: Student[]) {
+  if (!config.useSupabaseLive || students.length === 0) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    const payload = students.map(s => ({
+      id: s.id,
+      nis: s.nis,
+      nisn: s.nisn,
+      name: s.name,
+      gender: s.gender,
+      class_id: s.classId,
+      class_name: s.className,
+      parent_id: s.parentId,
+      parent_name: s.parentName,
+      parent_phone: s.parentPhone,
+      qr_code: s.qrCode,
+    }));
+    await supabase.from('students').upsert(payload);
+  } catch (err) {
+    console.warn('dbBatchAddStudents error:', err);
+  }
+}
+
 export async function dbDeleteStudent(config: SchoolConfig, studentId: string) {
   if (!config.useSupabaseLive) return;
   const supabase = getSupabaseClient(config);
