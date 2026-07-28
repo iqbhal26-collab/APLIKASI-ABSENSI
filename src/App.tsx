@@ -370,7 +370,19 @@ export default function App() {
   };
 
   // Record Attendance from Scanner or Manual
-  const handleRecordAttendance = (newRecordData: Omit<AttendanceRecord, 'id'>) => {
+  const handleRecordAttendance = (newRecordData: Omit<AttendanceRecord, 'id'>): boolean => {
+    // Prevent double attendance for same student, date, and activityCode
+    const isDuplicate = attendanceRecords.some(
+      r => r.studentId === newRecordData.studentId &&
+           r.date === newRecordData.date &&
+           r.activityCode === newRecordData.activityCode
+    );
+
+    if (isDuplicate) {
+      console.warn(`Presensi ganda dicegah untuk ${newRecordData.studentName} (${newRecordData.activityCode}) pada ${newRecordData.date}`);
+      return false;
+    }
+
     const newRecord: AttendanceRecord = {
       ...newRecordData,
       id: `att-${Date.now()}`,
@@ -396,6 +408,7 @@ export default function App() {
       setNotifications(prev => [newNotif, ...prev]);
       dbPushNotification(schoolConfig, newNotif);
     }
+    return true;
   };
 
   // Add new student
@@ -813,6 +826,7 @@ export default function App() {
           records={attendanceRecords}
           activities={activities}
           schoolConfig={schoolConfig}
+          onRecordAttendance={handleRecordAttendance}
         />
       );
     }
@@ -933,6 +947,7 @@ export default function App() {
         onClose={() => setIsScannerOpen(false)}
         students={students}
         activities={activities}
+        records={attendanceRecords}
         onRecordAttendance={handleRecordAttendance}
       />
 

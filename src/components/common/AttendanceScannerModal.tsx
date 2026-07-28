@@ -7,7 +7,8 @@ interface AttendanceScannerModalProps {
   onClose: () => void;
   students: Student[];
   activities: ActivityType[];
-  onRecordAttendance: (record: Omit<AttendanceRecord, 'id'>) => void;
+  records?: AttendanceRecord[];
+  onRecordAttendance: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
 }
 
 export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
@@ -15,6 +16,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
   onClose,
   students,
   activities,
+  records = [],
   onRecordAttendance
 }) => {
   if (!isOpen) return null;
@@ -45,6 +47,26 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     }
 
     const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    // Anti-duplicate check: check if student has already recorded attendance for this activity today
+    const existing = records.find(
+      r => r.studentId === currentStudent.id &&
+           r.date === todayStr &&
+           r.activityCode === selectedActivity.code
+    );
+
+    if (existing) {
+      setScanResult({
+        success: false,
+        message: `PERINGATAN / GAGAL: Siswa '${currentStudent.name}' SUDAH ABSEN untuk kegiatan '${selectedActivity.name}' hari ini pada pukul ${existing.time} WIB (Status: ${existing.status.toUpperCase()}). Data absensi tidak bisa dobel!`,
+        studentName: currentStudent.name,
+        time: existing.time,
+        status: existing.status,
+      });
+      return;
+    }
+
     const timeStr = now.toTimeString().split(' ')[0]; // HH:mm:ss
     const hourMin = timeStr.substring(0, 5); // HH:mm
 
@@ -54,12 +76,12 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
       status = 'terlambat';
     }
 
-    onRecordAttendance({
+    const isSuccess = onRecordAttendance({
       studentId: currentStudent.id,
       studentName: currentStudent.name,
       className: currentStudent.className,
       gender: currentStudent.gender,
-      date: now.toISOString().split('T')[0],
+      date: todayStr,
       activityId: selectedActivity.id,
       activityCode: selectedActivity.code,
       activityName: selectedActivity.name,
@@ -68,6 +90,17 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
       method: 'QR_SCAN',
       notes: status === 'terlambat' ? 'Presensi melewati batas toleransi jam kegiatan' : undefined,
     });
+
+    if (isSuccess === false) {
+      setScanResult({
+        success: false,
+        message: `PERINGATAN: Absensi gagal karena data absensi untuk siswa '${currentStudent.name}' pada sesi '${selectedActivity.name}' sudah ada. Presensi tidak dapat diulang!`,
+        studentName: currentStudent.name,
+        time: timeStr,
+        status: status,
+      });
+      return;
+    }
 
     setScanResult({
       success: true,

@@ -7,21 +7,64 @@ interface StudentDashboardProps {
   records: AttendanceRecord[];
   activities: ActivityType[];
   schoolConfig: SchoolConfig;
+  onRecordAttendance?: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   student,
   records,
   activities,
-  schoolConfig
+  schoolConfig,
+  onRecordAttendance
 }) => {
   const [showFullQr, setShowFullQr] = useState(false);
+  const [actionAlert, setActionAlert] = useState<string | null>(null);
   const todayStr = new Date().toISOString().split('T')[0];
   const myRecords = records.filter(r => r.studentId === student.id);
   const todayRecords = myRecords.filter(r => r.date === todayStr);
 
   const isFriday = new Date().getDay() === 5;
   const isMale = student.gender === 'L';
+
+  const handleSelfCheckIn = (act: ActivityType) => {
+    // Anti-duplicate check
+    const existing = todayRecords.find(r => r.activityCode === act.code);
+    if (existing) {
+      setActionAlert(`⚠️ PRESENSI GAGAL: Anda sudah melakukan presensi ${act.name} hari ini pada pukul ${existing.time} WIB. Presensi tidak bisa diulang!`);
+      return;
+    }
+
+    if (onRecordAttendance) {
+      const now = new Date();
+      const timeStr = now.toTimeString().split(' ')[0];
+      const hourMin = timeStr.substring(0, 5);
+      let status: 'hadir' | 'terlambat' = 'hadir';
+      if (act.endTime && hourMin > act.endTime) {
+        status = 'terlambat';
+      }
+
+      const ok = onRecordAttendance({
+        studentId: student.id,
+        studentName: student.name,
+        className: student.className,
+        gender: student.gender,
+        date: todayStr,
+        activityId: act.id,
+        activityCode: act.code,
+        activityName: act.name,
+        time: timeStr,
+        status: status,
+        method: 'SELF_CHECKIN',
+        notes: status === 'terlambat' ? 'Presensi mandiri melewati jam kegiatan' : undefined,
+      });
+
+      if (ok === false) {
+        setActionAlert(`⚠️ PRESENSI GAGAL: Presensi ${act.name} sudah tercatat sebelumnya. Data tidak bisa dobel!`);
+      } else {
+        setActionAlert(`✅ PRESENSI BERHASIL! Presensi ${act.name} telah dicatat pada pukul ${timeStr} WIB.`);
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -48,6 +91,23 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           <span>Tampilkan QR Kartu Pelajar Saya</span>
         </button>
       </div>
+
+      {/* Action alert */}
+      {actionAlert && (
+        <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between ${
+          actionAlert.includes('BERHASIL')
+            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'
+            : 'bg-rose-500/20 border-rose-500/40 text-rose-200'
+        }`}>
+          <span>{actionAlert}</span>
+          <button
+            onClick={() => setActionAlert(null)}
+            className="text-xs px-2 py-0.5 rounded bg-white/10 hover:bg-white/20"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       {/* Friday Prayer Alert for Males */}
       {isMale && (
@@ -124,9 +184,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   Batas Jam: {act.startTime} - {act.endTime}
                 </div>
 
-                <div className="mt-4 pt-2 border-t border-white/10 flex items-center justify-between text-xs font-semibold">
-                  <span className="text-slate-400">Waktu Scan:</span>
-                  <span className="font-mono text-white">{rec ? rec.time : '-'}</span>
+                <div className="mt-4 pt-2 border-t border-white/10 flex flex-col space-y-2 text-xs font-semibold">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Waktu Scan:</span>
+                    <span className="font-mono text-white">{rec ? rec.time : '-'}</span>
+                  </div>
+
+                  {isCompleted ? (
+                    <div className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 text-center">
+                      🔒 Presensi Terkunci (Sudah Absen)
+                    </div>
+                  ) : !isFemaleExempt && onRecordAttendance ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSelfCheckIn(act)}
+                      className="w-full py-1.5 px-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-[11px] transition-all flex items-center justify-center space-x-1 active:scale-95 shadow-md shadow-emerald-500/20"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Absen Mandiri Sekarang</span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
