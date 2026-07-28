@@ -6,7 +6,8 @@ import {
   Student,
   AttendanceRecord,
   PermitSubmission,
-  PushNotification
+  PushNotification,
+  User
 } from '../types';
 
 export interface SupabaseFetchResult {
@@ -15,6 +16,7 @@ export interface SupabaseFetchResult {
   config?: SchoolConfig;
   activities?: ActivityType[];
   classes?: SchoolClass[];
+  teachers?: User[];
   students?: Student[];
   attendanceRecords?: AttendanceRecord[];
   permits?: PermitSubmission[];
@@ -54,6 +56,15 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
       .from('activities')
       .select('*');
     if (activitiesError) throw activitiesError;
+
+    // 3b. Fetch Teachers (Guru Agama & Wali Kelas)
+    let teachersData: any[] = [];
+    try {
+      const { data: tData } = await supabase.from('teachers').select('*');
+      if (tData) teachersData = tData;
+    } catch (err) {
+      console.warn('Tabel teachers belum ada di Supabase atau belum dibuat:', err);
+    }
 
     // 4. Fetch Students
     const { data: studentsData, error: studentsError } = await supabase
@@ -126,6 +137,15 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
       isRequired: a.is_required ?? true,
     }));
 
+    const fetchedTeachers: User[] = (teachersData || []).map(t => ({
+      id: t.id,
+      username: t.nip || t.id,
+      name: t.name,
+      role: (t.role as any) || 'guru_agama',
+      email: t.email || `${t.nip}@sman1edukasi.sch.id`,
+      phone: t.phone || t.nip,
+    }));
+
     const fetchedStudents: Student[] = (studentsData || []).map(s => ({
       id: s.id,
       nis: s.nis,
@@ -189,6 +209,7 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
       config: fetchedConfig,
       classes: fetchedClasses,
       activities: fetchedActivities,
+      teachers: fetchedTeachers,
       students: fetchedStudents,
       attendanceRecords: fetchedAttendance,
       permits: fetchedPermits,
@@ -233,6 +254,7 @@ export async function seedSupabaseData(
   data: {
     classes: SchoolClass[];
     activities: ActivityType[];
+    teachers?: User[];
     students: Student[];
     attendanceRecords: AttendanceRecord[];
     permits: PermitSubmission[];
@@ -679,5 +701,36 @@ export async function dbMarkNotificationRead(config: SchoolConfig, notifId: stri
     await supabase.from('push_notifications').update({ is_read: true }).eq('id', notifId);
   } catch (err) {
     console.warn('dbMarkNotificationRead error:', err);
+  }
+}
+
+export async function dbAddTeacher(config: SchoolConfig, teacher: User) {
+  if (!config.useSupabaseLive) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    await supabase.from('teachers').upsert({
+      id: teacher.id,
+      nip: teacher.username,
+      name: teacher.name,
+      role: teacher.role,
+      email: teacher.email,
+      phone: teacher.phone || teacher.username,
+    });
+  } catch (err) {
+    console.warn('dbAddTeacher error:', err);
+  }
+}
+
+export async function dbDeleteTeacher(config: SchoolConfig, teacherId: string) {
+  if (!config.useSupabaseLive) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    await supabase.from('teachers').delete().eq('id', teacherId);
+  } catch (err) {
+    console.warn('dbDeleteTeacher error:', err);
   }
 }

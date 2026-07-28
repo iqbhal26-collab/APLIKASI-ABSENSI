@@ -43,7 +43,9 @@ import {
   dbDeleteClass,
   dbUpdateSchoolConfig,
   dbPushNotification,
-  dbMarkNotificationRead
+  dbMarkNotificationRead,
+  dbAddTeacher,
+  dbDeleteTeacher
 } from './lib/supabaseSync';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -195,6 +197,7 @@ export default function App() {
         const seedRes = await seedSupabaseData(activeCfg, {
           classes,
           activities,
+          teachers: users.filter(u => u.role === 'guru' || u.role === 'guru_agama'),
           students,
           attendanceRecords,
           permits,
@@ -219,6 +222,12 @@ export default function App() {
         if (result.config) setSchoolConfig({ ...result.config, useSupabaseLive: true });
         if (result.classes) setClasses(result.classes);
         if (result.activities) setActivities(result.activities);
+        if (result.teachers && result.teachers.length > 0) {
+          setUsers(prev => {
+            const nonTeacherUsers = prev.filter(u => u.role !== 'guru' && u.role !== 'guru_agama');
+            return [...nonTeacherUsers, ...result.teachers!];
+          });
+        }
         if (result.students) setStudents(result.students);
         if (result.attendanceRecords) setAttendanceRecords(result.attendanceRecords);
         if (result.permits) setPermits(result.permits);
@@ -371,14 +380,17 @@ export default function App() {
     };
 
     setUsers(prev => [...prev, newTeacher]);
+    dbAddTeacher(schoolConfig, newTeacher);
   };
 
   const handleDeleteTeacher = (teacherId: string) => {
     setUsers(prev => prev.filter(u => u.id !== teacherId));
+    dbDeleteTeacher(schoolConfig, teacherId);
   };
 
   const handleUpdateTeacher = (updatedUser: User) => {
     setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    dbAddTeacher(schoolConfig, updatedUser);
   };
 
   // Handle switching user/role

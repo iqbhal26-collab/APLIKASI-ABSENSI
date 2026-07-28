@@ -104,6 +104,17 @@ CREATE TABLE IF NOT EXISTS public.classes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 2b. Table Guru / Pendidik (Guru Agama & Wali Kelas)
+CREATE TABLE IF NOT EXISTS public.teachers (
+    id TEXT PRIMARY KEY,
+    nip TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'guru_agama',
+    email TEXT,
+    phone TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Pastikan kolom homeroom_teacher_name ada jika tabel classes sudah pernah dibuat sebelumnya
 ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS homeroom_teacher_name TEXT;
 ALTER TABLE public.classes ADD COLUMN IF NOT EXISTS homeroom_teacher_id TEXT;
@@ -187,6 +198,7 @@ CREATE TABLE IF NOT EXISTS public.push_notifications (
 -- Enable Row Level Security (RLS) & Allow public read/write for app demo
 ALTER TABLE public.school_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teachers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_records ENABLE ROW LEVEL SECURITY;
@@ -195,6 +207,7 @@ ALTER TABLE public.push_notifications ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public full access" ON public.school_config;
 DROP POLICY IF EXISTS "Allow public full access" ON public.classes;
+DROP POLICY IF EXISTS "Allow public full access" ON public.teachers;
 DROP POLICY IF EXISTS "Allow public full access" ON public.students;
 DROP POLICY IF EXISTS "Allow public full access" ON public.activities;
 DROP POLICY IF EXISTS "Allow public full access" ON public.attendance_records;
@@ -203,6 +216,7 @@ DROP POLICY IF EXISTS "Allow public full access" ON public.push_notifications;
 
 CREATE POLICY "Allow public full access" ON public.school_config FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.classes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON public.teachers FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.students FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.activities FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.attendance_records FOR ALL USING (true) WITH CHECK (true);
