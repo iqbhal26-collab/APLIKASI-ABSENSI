@@ -18,7 +18,7 @@ interface NavbarProps {
   currentUser: User;
   schoolConfig: SchoolConfig;
   unreadNotifCount: number;
-  onOpenRoleSelector: () => void;
+  onOpenRoleSelector?: () => void;
   onOpenScanner: () => void;
   onToggleNotifDrawer: () => void;
   onOpenSupabaseModal: () => void;
@@ -145,32 +145,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Role Switcher & Logout */}
+            {/* User Profile Badge & Logout */}
             <div className="pl-1 sm:pl-2 border-l border-white/10 flex items-center space-x-2">
-              <button
-                onClick={onOpenRoleSelector}
-                className="flex items-center space-x-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 transition-all text-left"
-                title="Ganti Peran / Akses Login"
-              >
+              <div className="flex items-center space-x-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 border border-white/10">
                 <div className="hidden lg:block text-right">
-                  <div className="text-xs font-semibold text-slate-100 leading-tight">
+                  <div className="text-xs font-bold text-slate-100 leading-tight">
                     {currentUser.name}
-                  </div>
-                  <div className="text-[10px] text-slate-400 leading-tight">
-                    Klik untuk Ganti Akses
                   </div>
                 </div>
                 <div className={`inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full border ${roleBadge.bg}`}>
                   {roleBadge.icon}
                   <span>{roleBadge.label}</span>
                 </div>
-                <RefreshCw className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
-              </button>
+              </div>
 
               {onLogout && (
                 <button
                   onClick={onLogout}
-                  className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition-all flex items-center space-x-1"
+                  className="p-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition-all flex items-center space-x-1 cursor-pointer"
                   title="Keluar / Logout"
                 >
                   <LogOut className="w-4 h-4 text-rose-400" />

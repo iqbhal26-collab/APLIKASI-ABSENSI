@@ -921,7 +921,6 @@ export default function App() {
           onToggleNotifDrawer={() => setIsNotifDrawerOpen(true)}
           onOpenSupabaseModal={() => {
             if (currentUser.role === 'admin') setActiveTab('config');
-            else setIsRoleSelectorOpen(true);
           }}
           onLogout={handleLogout}
         />
