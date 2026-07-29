@@ -25,17 +25,26 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   onApprovePermit,
   onOpenExportModal
 }) => {
+  // Filter classes to only those handled by this teacher
+  const handledClasses = (teacherClassHandled && teacherClassHandled.length > 0)
+    ? classes.filter(c => teacherClassHandled.includes(c.id))
+    : classes;
+
+  const activeClasses = handledClasses.length > 0 ? handledClasses : classes;
+
   const [selectedClassId, setSelectedClassId] = useState<string>(
-    teacherClassHandled && teacherClassHandled[0] ? teacherClassHandled[0] : classes[0]?.id || ''
+    activeClasses[0]?.id || ''
   );
   const [selectedActivityCode, setSelectedActivityCode] = useState<string>('DATANG');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  const currentClass = classes.find(c => c.id === selectedClassId) || classes[0];
-  const classStudents = students.filter(s => s.classId === selectedClassId);
+  const currentClass = activeClasses.find(c => c.id === selectedClassId) || activeClasses[0];
+  const classStudents = students.filter(s => s.classId === currentClass?.id || s.className === currentClass?.name);
   const selectedActivity = activities.find(a => a.code === selectedActivityCode) || activities[0];
 
-  const pendingPermits = permits.filter(p => p.className === currentClass?.name && p.status === 'pending');
+  const pendingPermits = permits.filter(
+    p => (p.className === currentClass?.name || activeClasses.some(c => c.name === p.className)) && p.status === 'pending'
+  );
 
   return (
     <div className="space-y-6">
@@ -50,13 +59,13 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
             Presensi Siswa Kelas {currentClass?.name || 'X IPA 1'}
           </h2>
           <p className="text-xs text-slate-300 mt-1">
-            Wali Kelas: <strong>{currentClass?.homeroomTeacherName}</strong> | Total: {classStudents.length} Siswa
+            Wali Kelas: <strong>{currentClass?.homeroomTeacherName || 'Wali Kelas'}</strong> | Total: {classStudents.length} Siswa
           </p>
         </div>
 
         <button
           onClick={onOpenExportModal}
-          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95"
+          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
         >
           <FileSpreadsheet className="w-4 h-4 text-slate-950" />
           <span>Cetak Laporan Kelas</span>
@@ -68,14 +77,14 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
         {/* Class selector */}
         <div>
           <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-            Pilih Kelas Binaan:
+            Pilih Kelas Binaan Wali Kelas:
           </label>
           <select
             value={selectedClassId}
             onChange={(e) => setSelectedClassId(e.target.value)}
             className="w-full border border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-white bg-slate-900"
           >
-            {classes.map((c) => (
+            {activeClasses.map((c) => (
               <option key={c.id} value={c.id}>
                 Kelas {c.name} ({c.studentCount} Siswa)
               </option>

@@ -42,7 +42,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
     return students.filter(s => s.classId === cId || s.className === cName).length;
   };
 
-  const filteredStudents = students.filter(s => {
+  const rawFilteredStudents = students.filter(s => {
     const searchLower = (searchTerm || '').toLowerCase().trim();
     const nameMatch = (s.name || '').toLowerCase().includes(searchLower);
     const nisMatch = (s.nis || '').toLowerCase().includes(searchLower);
@@ -59,6 +59,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       (selectedClassObj && (s.className || '').toLowerCase().trim() === (selectedClassObj.name || '').toLowerCase().trim());
     return matchSearch && matchClass;
   });
+
+  const filteredStudents: Student[] = Array.from(new Map<string, Student>(rawFilteredStudents.map(s => [s.id, s])).values());
 
   const isAllSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.includes(s.id));
 

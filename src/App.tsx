@@ -96,12 +96,24 @@ export default function App() {
 
   const [classes, setClasses] = useState<SchoolClass[]>(() => {
     const saved = localStorage.getItem('sma_classes');
-    return saved ? JSON.parse(saved) : initialClasses;
+    const parsed: SchoolClass[] = saved ? JSON.parse(saved) : initialClasses;
+    const seen = new Set<string>();
+    return parsed.filter(c => {
+      if (!c || !c.id || seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
   });
 
   const [students, setStudents] = useState<Student[]>(() => {
     const saved = localStorage.getItem('sma_students');
-    return saved ? JSON.parse(saved) : initialStudents;
+    const parsed: Student[] = saved ? JSON.parse(saved) : initialStudents;
+    const seen = new Set<string>();
+    return parsed.filter(s => {
+      if (!s || !s.id || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
   });
 
   const [users, setUsers] = useState<User[]>(() => {
@@ -226,18 +238,27 @@ export default function App() {
         
         if (result.classes && result.classes.length > 0) {
           setClasses(prevLocal => {
-            const classMap = new Map<string, SchoolClass>();
+            const classById = new Map<string, SchoolClass>();
+            const nameSet = new Set<string>();
+
             result.classes!.forEach(c => {
-              classMap.set(c.id, c);
-              if (c.name) classMap.set(`name-${c.name.toLowerCase().trim()}`, c);
-            });
-            prevLocal.forEach(loc => {
-              const nameKey = loc.name ? `name-${loc.name.toLowerCase().trim()}` : '';
-              if (!classMap.has(loc.id) && (!nameKey || !classMap.has(nameKey))) {
-                classMap.set(loc.id, loc);
+              if (c && c.id) {
+                classById.set(c.id, c);
+                if (c.name) nameSet.add(c.name.toLowerCase().trim());
               }
             });
-            const merged = Array.from(classMap.values());
+
+            prevLocal.forEach(loc => {
+              if (loc && loc.id) {
+                const nameKey = loc.name ? loc.name.toLowerCase().trim() : '';
+                if (!classById.has(loc.id) && (!nameKey || !nameSet.has(nameKey))) {
+                  classById.set(loc.id, loc);
+                  if (nameKey) nameSet.add(nameKey);
+                }
+              }
+            });
+
+            const merged = Array.from(classById.values());
             localStorage.setItem('sma_classes', JSON.stringify(merged));
             return merged;
           });
@@ -253,18 +274,27 @@ export default function App() {
 
         if (result.students && result.students.length > 0) {
           setStudents(prevLocal => {
-            const studentMap = new Map<string, Student>();
+            const studentById = new Map<string, Student>();
+            const nisSet = new Set<string>();
+
             result.students!.forEach(s => {
-              studentMap.set(s.id, s);
-              if (s.nis) studentMap.set(`nis-${s.nis.toLowerCase().trim()}`, s);
-            });
-            prevLocal.forEach(loc => {
-              const nisKey = loc.nis ? `nis-${loc.nis.toLowerCase().trim()}` : '';
-              if (!studentMap.has(loc.id) && (!nisKey || !studentMap.has(nisKey))) {
-                studentMap.set(loc.id, loc);
+              if (s && s.id) {
+                studentById.set(s.id, s);
+                if (s.nis) nisSet.add(s.nis.toLowerCase().trim());
               }
             });
-            const merged = Array.from(studentMap.values());
+
+            prevLocal.forEach(loc => {
+              if (loc && loc.id) {
+                const nisKey = loc.nis ? loc.nis.toLowerCase().trim() : '';
+                if (!studentById.has(loc.id) && (!nisKey || !nisSet.has(nisKey))) {
+                  studentById.set(loc.id, loc);
+                  if (nisKey) nisSet.add(nisKey);
+                }
+              }
+            });
+
+            const merged = Array.from(studentById.values());
             localStorage.setItem('sma_students', JSON.stringify(merged));
             return merged;
           });
@@ -951,14 +981,23 @@ export default function App() {
           );
       }
     } else if (currentUser.role === 'guru') {
+      const teacherHandledClasses = classes.filter(c => {
+        const isClassHandled = currentUser.classHandled && currentUser.classHandled.includes(c.id);
+        const isTeacherId = c.homeroomTeacherId === currentUser.id;
+        const isTeacherName = c.homeroomTeacherName && currentUser.name &&
+          c.homeroomTeacherName.toLowerCase().trim() === currentUser.name.toLowerCase().trim();
+        return isClassHandled || isTeacherId || isTeacherName;
+      });
+      const activeTeacherClasses = teacherHandledClasses.length > 0 ? teacherHandledClasses : classes;
+
       return (
         <GuruDashboard
-          classes={classes}
+          classes={activeTeacherClasses}
           activities={activities}
           students={students}
           records={attendanceRecords}
           permits={permits}
-          teacherClassHandled={currentUser.classHandled}
+          teacherClassHandled={activeTeacherClasses.map(c => c.id)}
           onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onApprovePermit={handleApprovePermit}
           onOpenExportModal={() => setIsExportModalOpen(true)}
@@ -1129,6 +1168,8 @@ export default function App() {
         students={students}
         schoolConfig={schoolConfig}
         userRole={currentUser.role}
+        currentUser={currentUser}
+        linkedStudent={linkedStudent}
       />
 
       {/* Excel Import Center Modal */}
