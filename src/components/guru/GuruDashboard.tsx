@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus, User } from '../../types';
 import { UserCheck, CheckCircle2, Clock, Calendar, FileText, Check, X, FileSpreadsheet, AlertCircle, Paperclip } from 'lucide-react';
 
@@ -35,6 +35,12 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   const [selectedActivityCode, setSelectedActivityCode] = useState<string>('DATANG');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [previewAttachmentUrl, setPreviewAttachmentUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeClasses.length > 0 && (!selectedClassId || !activeClasses.some(c => c.id === selectedClassId))) {
+      setSelectedClassId(activeClasses[0].id);
+    }
+  }, [activeClasses, selectedClassId]);
 
   const currentClass = activeClasses.find(c => c.id === selectedClassId) || activeClasses[0];
   const classStudents = students.filter(s => {

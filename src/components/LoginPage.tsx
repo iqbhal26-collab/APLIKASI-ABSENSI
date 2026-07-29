@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Student, UserRole, SchoolConfig } from '../types';
+import { User, Student, UserRole, SchoolConfig, SchoolClass } from '../types';
 import {
   ShieldCheck,
   UserCheck,
@@ -19,6 +19,7 @@ interface LoginPageProps {
   schoolConfig: SchoolConfig;
   users: User[];
   students: Student[];
+  classes?: SchoolClass[];
   onLoginSuccess: (user: User) => void;
 }
 
@@ -26,6 +27,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   schoolConfig,
   users,
   students,
+  classes = [],
   onLoginSuccess
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
@@ -78,34 +80,81 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         return;
       }
 
-      // 2. GURU LOGIN (NIP)
+      // 2. GURU / WALI KELAS LOGIN (NIP / Username / Nama Kelas)
       if (selectedRole === 'guru') {
-        // Find teacher by NIP or username or match demo NIPs
-        const teacherByNip = users.find(
-          u => u.role === 'guru' && (u.phone?.includes(credential) || u.username.includes(credential) || credential === '198501012010011001' || credential === '198702022011022002')
-        );
+        const normCred = credential.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        if (teacherByNip) {
-          onLoginSuccess(teacherByNip);
+        // a) Find teacher by user credentials or class handled
+        const teacherByUser = users.find(u => {
+          if (u.role !== 'guru') return false;
+          const uUserNorm = u.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const uNameNorm = u.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (uUserNorm.includes(normCred) || uNameNorm.includes(normCred)) return true;
+          if (u.phone && u.phone.includes(credential)) return true;
+          if (u.classHandled && u.classHandled.some(h => String(h).toLowerCase().replace(/[^a-z0-9]/g, '') === normCred)) return true;
+          return false;
+        });
+
+        if (teacherByUser) {
+          onLoginSuccess(teacherByUser);
+          return;
+        }
+
+        // b) Match class directly from classes list (e.g. XI.B2 or X IPA 1)
+        const classMatch = classes.find(c => {
+          const normCName = c.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const normCId = c.id.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return normCName === normCred || normCId === normCred || (normCred.length >= 2 && normCName.includes(normCred));
+        });
+
+        if (classMatch) {
+          const teacherName = classMatch.homeroomTeacherName && classMatch.homeroomTeacherName !== 'Belum Ditentukan'
+            ? classMatch.homeroomTeacherName
+            : `Wali Kelas ${classMatch.name}`;
+
+          onLoginSuccess({
+            id: classMatch.homeroomTeacherId || `user-guru-${classMatch.id}`,
+            username: `wali_${classMatch.id}`,
+            name: teacherName,
+            role: 'guru',
+            email: `walikelas.${classMatch.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@sman1edukasi.sch.id`,
+            classHandled: [classMatch.id, classMatch.name]
+          });
+          return;
+        }
+
+        // c) Match student className (e.g. XI.B2)
+        const stdMatch = students.find(s => s.className && s.className.toLowerCase().replace(/[^a-z0-9]/g, '') === normCred);
+        if (stdMatch && stdMatch.className) {
+          onLoginSuccess({
+            id: `user-guru-stdclass-${normCred}`,
+            username: `wali_${normCred}`,
+            name: `Wali Kelas ${stdMatch.className}`,
+            role: 'guru',
+            email: `walikelas.${normCred}@sman1edukasi.sch.id`,
+            classHandled: [stdMatch.className, stdMatch.classId]
+          });
+          return;
+        }
+
+        // d) NIP or credential input >= 3 chars fallback
+        if (credential.length >= 3) {
+          const firstGuru = users.find(u => u.role === 'guru') || {
+            id: 'user-guru-1',
+            username: 'siti_guru',
+            name: 'Siti Rahmawati, S.Pd',
+            role: 'guru' as const,
+            email: 'siti.rahmawati@sman1edukasi.sch.id',
+            classHandled: ['cls-1'],
+          };
+          onLoginSuccess({
+            ...firstGuru,
+            name: `Guru (NIP / Kelas: ${credential})`,
+            classHandled: [credential]
+          });
         } else {
-          // If a teacher with this NIP is not in users array, check if it's a valid NIP input
-          if (credential.length >= 6) {
-            const firstGuru = users.find(u => u.role === 'guru') || {
-              id: 'user-guru-1',
-              username: 'siti_guru',
-              name: 'Siti Rahmawati, S.Pd',
-              role: 'guru' as const,
-              email: 'siti.rahmawati@sman1edukasi.sch.id',
-              classHandled: ['cls-1'],
-            };
-            onLoginSuccess({
-              ...firstGuru,
-              name: `Guru (NIP: ${credential})`,
-            });
-          } else {
-            setErrorMessage('NIP tidak ditemukan!');
-            setIsLoading(false);
-          }
+          setErrorMessage('NIP atau Kelas tidak ditemukan!');
+          setIsLoading(false);
         }
         return;
       }

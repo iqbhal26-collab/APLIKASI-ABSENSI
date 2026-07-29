@@ -982,7 +982,7 @@ export default function App() {
           );
       }
     } else if (currentUser.role === 'guru') {
-      const activeTeacherClasses = getTeacherClasses(currentUser, classes);
+      const activeTeacherClasses = getTeacherClasses(currentUser, classes, students);
 
       return (
         <GuruDashboard
@@ -1041,6 +1041,7 @@ export default function App() {
         schoolConfig={schoolConfig}
         users={users}
         students={students}
+        classes={classes}
         onLoginSuccess={handleLoginSuccess}
       />
     );

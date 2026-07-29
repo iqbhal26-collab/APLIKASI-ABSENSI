@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolClass, ActivityType, AttendanceRecord, Student, SchoolConfig, UserRole, User } from '../../types';
 import { exportAttendanceToExcel, exportAttendanceToPDF } from '../../lib/exportUtils';
 import { getTeacherClasses } from '../../lib/teacherUtils';
@@ -12,7 +12,7 @@ interface ReportExportModalProps {
   attendanceRecords: AttendanceRecord[];
   students: Student[];
   schoolConfig: SchoolConfig;
-  userRole?: UserRole;
+  userRole: UserRole;
   currentUser?: User;
   linkedStudent?: Student;
 }
@@ -61,7 +61,7 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       r => r.studentId === linkedStudent.id || r.studentName === linkedStudent.name
     );
   } else if (isHomeroomTeacher && currentUser) {
-    const activeTeacherClasses = getTeacherClasses(currentUser, classes);
+    const activeTeacherClasses = getTeacherClasses(currentUser, classes, students);
 
     effectiveClasses = activeTeacherClasses;
     const classIds = new Set(activeTeacherClasses.map(c => c.id));
@@ -94,6 +94,14 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
     return 'ALL';
   });
   const [selectedActivity, setSelectedActivity] = useState<string>('ALL');
+
+  useEffect(() => {
+    if (isHomeroomTeacher && effectiveClasses.length > 0) {
+      if (selectedClass === 'ALL' || !effectiveClasses.some(c => c.name === selectedClass)) {
+        setSelectedClass(effectiveClasses[0].name);
+      }
+    }
+  }, [isHomeroomTeacher, effectiveClasses, selectedClass]);
 
   const getRecordsToExport = () => {
     let recs = effectiveRecords;

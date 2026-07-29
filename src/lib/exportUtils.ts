@@ -30,7 +30,9 @@ export const exportAttendanceToExcel = (
 ) => {
   const filteredRecords = records.filter(r => {
     const matchMonth = filter.month ? r.date.startsWith(filter.month) : true;
-    const matchClass = filter.className && filter.className !== 'ALL' ? r.className === filter.className : true;
+    const matchClass = filter.className && filter.className !== 'ALL'
+      ? (r.className ? r.className.toLowerCase().replace(/[^a-z0-9]/g, '') === filter.className.toLowerCase().replace(/[^a-z0-9]/g, '') : true)
+      : true;
     const matchAct = filter.activityCode && filter.activityCode !== 'ALL' ? r.activityCode === filter.activityCode : true;
     return matchMonth && matchClass && matchAct;
   });
@@ -197,7 +199,9 @@ export const exportAttendanceToPDF = (
 ) => {
   const filteredRecords = records.filter(r => {
     const matchMonth = filter.month ? r.date.startsWith(filter.month) : true;
-    const matchClass = filter.className && filter.className !== 'ALL' ? r.className === filter.className : true;
+    const matchClass = filter.className && filter.className !== 'ALL'
+      ? (r.className ? r.className.toLowerCase().replace(/[^a-z0-9]/g, '') === filter.className.toLowerCase().replace(/[^a-z0-9]/g, '') : true)
+      : true;
     const matchAct = filter.activityCode && filter.activityCode !== 'ALL' ? r.activityCode === filter.activityCode : true;
     return matchMonth && matchClass && matchAct;
   });
