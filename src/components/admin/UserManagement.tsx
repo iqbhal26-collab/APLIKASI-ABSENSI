@@ -39,16 +39,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   };
 
   const filteredStudents = students.filter(s => {
-    const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.nis.includes(searchTerm) ||
-      s.nisn.includes(searchTerm) ||
-      s.parentName.toLowerCase().includes(searchTerm.toLowerCase());
+    const searchLower = (searchTerm || '').toLowerCase().trim();
+    const nameMatch = (s.name || '').toLowerCase().includes(searchLower);
+    const nisMatch = (s.nis || '').toLowerCase().includes(searchLower);
+    const nisnMatch = (s.nisn || '').toLowerCase().includes(searchLower);
+    const parentMatch = (s.parentName || '').toLowerCase().includes(searchLower);
+    const classMatchSearch = (s.className || '').toLowerCase().includes(searchLower);
+
+    const matchSearch = !searchLower || nameMatch || nisMatch || nisnMatch || parentMatch || classMatchSearch;
 
     const selectedClassObj = classes.find(c => c.id === selectedClassFilter);
     const matchClass = selectedClassFilter === 'ALL' ||
       s.classId === selectedClassFilter ||
       s.className === selectedClassFilter ||
-      (selectedClassObj && s.className?.toLowerCase().trim() === selectedClassObj.name?.toLowerCase().trim());
+      (selectedClassObj && (s.className || '').toLowerCase().trim() === (selectedClassObj.name || '').toLowerCase().trim());
     return matchSearch && matchClass;
   });
 

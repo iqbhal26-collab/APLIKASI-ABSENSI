@@ -222,7 +222,26 @@ export default function App() {
         }
       } else {
         if (result.config) setSchoolConfig({ ...result.config, useSupabaseLive: true });
-        if (result.classes) setClasses(result.classes);
+        
+        if (result.classes && result.classes.length > 0) {
+          setClasses(prevLocal => {
+            const classMap = new Map<string, SchoolClass>();
+            result.classes!.forEach(c => {
+              classMap.set(c.id, c);
+              if (c.name) classMap.set(`name-${c.name.toLowerCase().trim()}`, c);
+            });
+            prevLocal.forEach(loc => {
+              const nameKey = loc.name ? `name-${loc.name.toLowerCase().trim()}` : '';
+              if (!classMap.has(loc.id) && (!nameKey || !classMap.has(nameKey))) {
+                classMap.set(loc.id, loc);
+              }
+            });
+            const merged = Array.from(classMap.values());
+            localStorage.setItem('sma_classes', JSON.stringify(merged));
+            return merged;
+          });
+        }
+
         if (result.activities) setActivities(result.activities);
         if (result.teachers && result.teachers.length > 0) {
           setUsers(prev => {
@@ -230,7 +249,26 @@ export default function App() {
             return [...nonTeacherUsers, ...result.teachers!];
           });
         }
-        if (result.students) setStudents(result.students);
+
+        if (result.students && result.students.length > 0) {
+          setStudents(prevLocal => {
+            const studentMap = new Map<string, Student>();
+            result.students!.forEach(s => {
+              studentMap.set(s.id, s);
+              if (s.nis) studentMap.set(`nis-${s.nis.toLowerCase().trim()}`, s);
+            });
+            prevLocal.forEach(loc => {
+              const nisKey = loc.nis ? `nis-${loc.nis.toLowerCase().trim()}` : '';
+              if (!studentMap.has(loc.id) && (!nisKey || !studentMap.has(nisKey))) {
+                studentMap.set(loc.id, loc);
+              }
+            });
+            const merged = Array.from(studentMap.values());
+            localStorage.setItem('sma_students', JSON.stringify(merged));
+            return merged;
+          });
+        }
+
         if (result.attendanceRecords) setAttendanceRecords(result.attendanceRecords);
         if (result.permits) setPermits(result.permits);
         if (result.notifications) setNotifications(result.notifications);
@@ -479,6 +517,12 @@ export default function App() {
     let newClassesAdded: SchoolClass[] = [];
     const currentClassesMap = new Map<string, SchoolClass>(classes.map(c => [c.name.toLowerCase().trim(), { ...c }]));
 
+    const existingStudentsList = [...students];
+    const studentNisMap = new Map<string, Student>();
+    existingStudentsList.forEach(s => {
+      if (s.nis) studentNisMap.set(s.nis.trim().toLowerCase(), s);
+    });
+
     const newStudentList: Student[] = [];
 
     parsedStudents.forEach((p, idx) => {
@@ -502,16 +546,16 @@ export default function App() {
           major,
           homeroomTeacherId: '',
           homeroomTeacherName: 'Belum Ditentukan',
-          studentCount: 1,
+          studentCount: 0,
         };
         currentClassesMap.set(clsNameKey, matchedClass);
         newClassesAdded.push(matchedClass);
-      } else if (matchedClass) {
-        matchedClass.studentCount = (matchedClass.studentCount || 0) + 1;
-        currentClassesMap.set(clsNameKey, matchedClass);
       }
 
-      const stdId = `std-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`;
+      const nisKey = (p.nis || '').trim().toLowerCase();
+      const existingStd = nisKey ? studentNisMap.get(nisKey) : undefined;
+
+      const stdId = existingStd ? existingStd.id : `std-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`;
       const fallbackNis = p.nis || `${Date.now().toString().slice(-6)}${idx}`;
       const newStd: Student = {
         id: stdId,
@@ -521,12 +565,22 @@ export default function App() {
         gender: p.gender || 'L',
         classId: matchedClass?.id || classes[0]?.id || 'cls-1',
         className: p.className || matchedClass?.name || 'X IPA 1',
-        parentId: `user-ortu-${stdId}`,
+        parentId: existingStd ? existingStd.parentId : `user-ortu-${stdId}`,
         parentName: p.parentName || 'Orang Tua Siswa',
         parentPhone: p.parentPhone || '081200000000',
         qrCode: `QR-STD-${fallbackNis}`,
       };
+
+      if (existingStd) {
+        const exIdx = existingStudentsList.findIndex(s => s.id === existingStd.id);
+        if (exIdx !== -1) {
+          existingStudentsList[exIdx] = newStd;
+        }
+      } else {
+        existingStudentsList.push(newStd);
+      }
       newStudentList.push(newStd);
+      if (fallbackNis) studentNisMap.set(fallbackNis.trim().toLowerCase(), newStd);
     });
 
     if (newStudentList.length === 0) {
@@ -534,23 +588,34 @@ export default function App() {
       return;
     }
 
+    // Recalculate class student counts based on final student list
+    currentClassesMap.forEach((cls, key) => {
+      const count = existingStudentsList.filter(
+        s => s.classId === cls.id || s.className?.toLowerCase().trim() === key
+      ).length;
+      cls.studentCount = count;
+    });
+
     const updatedClasses = Array.from(currentClassesMap.values());
-    const updatedStudents = [...students, ...newStudentList];
+    const finalStudents = [...existingStudentsList];
 
     // Update state immediately
-    setStudents(updatedStudents);
+    setStudents(finalStudents);
     setClasses(updatedClasses);
 
     // Save to localStorage immediately
-    localStorage.setItem('sma_students', JSON.stringify(updatedStudents));
+    localStorage.setItem('sma_students', JSON.stringify(finalStudents));
     localStorage.setItem('sma_classes', JSON.stringify(updatedClasses));
-
-    // Alert user immediately
-    alert(`BERHASIL IMPORT DATA: ${newStudentList.length} siswa berhasil ditambahkan dan disimpan!`);
 
     // Sync classes then students to Supabase Cloud
     await dbUpdateClasses(schoolConfig, updatedClasses);
-    await dbBatchAddStudents(schoolConfig, newStudentList);
+    const dbRes = await dbBatchAddStudents(schoolConfig, finalStudents);
+
+    if (dbRes?.success) {
+      alert(`BERHASIL IMPORT DATA SISWA!\n\n• ${newStudentList.length} data siswa berhasil diproses.\n• Total ${finalStudents.length} siswa tersimpan di aplikasi & terhubung ke Supabase Cloud (${dbRes.count} synced).`);
+    } else {
+      alert(`BERHASIL IMPORT LOKAL!\n\n• Total ${newStudentList.length} siswa tersimpan di aplikasi.\n• Catatan Supabase: ${dbRes?.message || 'Memproses antrean Supabase...'}`);
+    }
   };
 
   // Bulk Import Teachers / Wali Kelas from Excel

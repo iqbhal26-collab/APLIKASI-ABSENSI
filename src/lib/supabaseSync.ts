@@ -326,21 +326,7 @@ export async function seedSupabaseData(
 
     // Upsert Students
     if (data.students.length > 0) {
-      await supabase.from('students').upsert(
-        data.students.map(s => ({
-          id: s.id,
-          nis: s.nis,
-          nisn: s.nisn,
-          name: s.name,
-          gender: s.gender,
-          class_id: s.classId,
-          class_name: s.className,
-          parent_id: s.parentId,
-          parent_name: s.parentName,
-          parent_phone: s.parentPhone,
-          qr_code: s.qrCode,
-        }))
-      );
+      await dbBatchAddStudents(config, data.students);
     }
 
     // Upsert Attendance Records
@@ -431,28 +417,36 @@ export async function dbAddStudent(config: SchoolConfig, student: Student) {
   if (!supabase) return;
 
   try {
-    await supabase.from('students').insert({
+    const payload = {
       id: student.id,
       nis: student.nis,
       nisn: student.nisn,
       name: student.name,
       gender: student.gender,
-      class_id: student.classId,
+      class_id: student.classId || null,
       class_name: student.className,
       parent_id: student.parentId,
       parent_name: student.parentName,
       parent_phone: student.parentPhone,
       qr_code: student.qrCode,
-    });
+    };
+    const { error } = await supabase.from('students').upsert(payload, { onConflict: 'id' });
+    if (error && (error.message?.includes('foreign key') || error.code === '23503')) {
+      await supabase.from('students').upsert({ ...payload, class_id: null }, { onConflict: 'id' });
+    }
   } catch (err) {
     console.warn('dbAddStudent error:', err);
   }
 }
 
 export async function dbBatchAddStudents(config: SchoolConfig, students: Student[]) {
-  if (!config.useSupabaseLive || students.length === 0) return;
+  if (!config.useSupabaseLive || students.length === 0) {
+    return { success: false, message: 'Supabase Live Connection nonaktif.', count: 0 };
+  }
   const supabase = getSupabaseClient(config);
-  if (!supabase) return;
+  if (!supabase) {
+    return { success: false, message: 'Supabase client tidak tersedia.', count: 0 };
+  }
 
   try {
     const payload = students.map(s => ({
@@ -461,16 +455,49 @@ export async function dbBatchAddStudents(config: SchoolConfig, students: Student
       nisn: s.nisn,
       name: s.name,
       gender: s.gender,
-      class_id: s.classId,
+      class_id: s.classId || null,
       class_name: s.className,
       parent_id: s.parentId,
       parent_name: s.parentName,
       parent_phone: s.parentPhone,
       qr_code: s.qrCode,
     }));
-    await supabase.from('students').upsert(payload);
-  } catch (err) {
-    console.warn('dbBatchAddStudents error:', err);
+
+    // Primary attempt: upsert all students
+    const { error } = await supabase.from('students').upsert(payload, { onConflict: 'id' });
+    if (!error) {
+      return { success: true, count: students.length, message: `Berhasil menyimpan ${students.length} data siswa ke Supabase.` };
+    }
+
+    console.warn('dbBatchAddStudents full upsert failed:', error);
+
+    // Fallback 1: Try without class_id foreign key constraint in case class_id is missing in Supabase classes table
+    const payloadNoFk = payload.map(p => ({ ...p, class_id: null }));
+    const { error: errorNoFk } = await supabase.from('students').upsert(payloadNoFk, { onConflict: 'id' });
+    if (!errorNoFk) {
+      return { success: true, count: students.length, message: `Berhasil menyinkronkan ${students.length} data siswa ke Supabase.` };
+    }
+
+    // Fallback 2: Row-by-row upsert so valid rows succeed even if some rows have constraint violations
+    let successCount = 0;
+    for (const item of payload) {
+      const { error: singleErr } = await supabase.from('students').upsert([item], { onConflict: 'id' });
+      if (!singleErr) {
+        successCount++;
+      } else {
+        const { error: singleErrNoFk } = await supabase.from('students').upsert([{ ...item, class_id: null }], { onConflict: 'id' });
+        if (!singleErrNoFk) successCount++;
+      }
+    }
+
+    return {
+      success: successCount > 0,
+      count: successCount,
+      message: `Tersimpan ${successCount} dari ${students.length} siswa ke Supabase Cloud.`
+    };
+  } catch (err: any) {
+    console.warn('dbBatchAddStudents exception:', err);
+    return { success: false, message: err?.message || 'Gagal menyimpan data siswa ke Supabase', count: 0 };
   }
 }
 
