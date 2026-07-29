@@ -26,6 +26,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<{ type: 'single'; student: Student } | { type: 'bulk'; ids: string[] } | null>(null);
 
   // Form State
   const [nis, setNis] = useState('');
@@ -79,14 +80,23 @@ export const UserManagement: React.FC<UserManagementProps> = ({
 
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
-    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} siswa yang dicentang?\nData akan dihapus dari aplikasi dan Supabase Cloud.`)) {
+    setDeleteConfirmTarget({ type: 'bulk', ids: selectedIds });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmTarget) return;
+    if (deleteConfirmTarget.type === 'single') {
+      onDeleteStudent(deleteConfirmTarget.student.id);
+      setSelectedIds(prev => prev.filter(id => id !== deleteConfirmTarget.student.id));
+    } else if (deleteConfirmTarget.type === 'bulk') {
       if (onDeleteStudentsBulk) {
-        onDeleteStudentsBulk(selectedIds);
+        onDeleteStudentsBulk(deleteConfirmTarget.ids);
       } else {
-        selectedIds.forEach(id => onDeleteStudent(id));
+        deleteConfirmTarget.ids.forEach(id => onDeleteStudent(id));
       }
       setSelectedIds([]);
     }
+    setDeleteConfirmTarget(null);
   };
 
   const handleSubmitNewStudent = (e: React.FormEvent) => {
@@ -156,9 +166,33 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             </button>
           )}
 
+          {selectedIds.length > 0 ? (
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/30 transition-all active:scale-95 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 text-white" />
+              <span>Hapus Terpilih ({selectedIds.length})</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleToggleSelectAll}
+              className="flex items-center space-x-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-slate-200 border border-white/10 font-bold text-xs rounded-xl transition-all cursor-pointer"
+              title="Ceklis Semua Siswa"
+            >
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={() => {}}
+                className="w-3.5 h-3.5 rounded border-white/20 bg-slate-900 text-emerald-500 pointer-events-none"
+              />
+              <span>{isAllSelected ? 'Batal Ceklis' : 'Ceklis Semua'}</span>
+            </button>
+          )}
+
           <button
             onClick={() => downloadStudentTemplate()}
-            className="flex items-center space-x-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs rounded-xl transition-all"
+            className="flex items-center space-x-2 px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs rounded-xl transition-all cursor-pointer"
             title="Unduh Format Template Excel Data Siswa"
           >
             <Download className="w-4 h-4 text-emerald-400" />
@@ -336,15 +370,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         {onNavigateTab && (
                           <button
                             onClick={() => onNavigateTab('student_cards')}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/20 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-purple-300 hover:bg-purple-500/20 transition-colors cursor-pointer"
                             title="Cetak Kartu Siswa (QR)"
                           >
                             <CreditCard className="w-4 h-4" />
                           </button>
                         )}
                         <button
-                          onClick={() => onDeleteStudent(std.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                          onClick={() => setDeleteConfirmTarget({ type: 'single', student: std })}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
                           title="Hapus Siswa"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -514,6 +548,43 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Delete Confirmation */}
+      {deleteConfirmTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-rose-500/30 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center mx-auto text-rose-400 border border-rose-500/30">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-white">
+              {deleteConfirmTarget.type === 'single'
+                ? 'Konfirmasi Hapus Data Siswa'
+                : `Konfirmasi Hapus ${deleteConfirmTarget.ids.length} Siswa`}
+            </h3>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {deleteConfirmTarget.type === 'single'
+                ? `Apakah Anda yakin ingin menghapus data siswa "${deleteConfirmTarget.student.name}" (NIS: ${deleteConfirmTarget.student.nis})?`
+                : `Apakah Anda yakin ingin menghapus ${deleteConfirmTarget.ids.length} siswa yang dicentang? Data akan dihapus dari aplikasi dan Supabase Cloud.`}
+            </p>
+            <div className="flex items-center justify-center space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmTarget(null)}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/30 cursor-pointer"
+              >
+                Ya, Hapus Permanen
+              </button>
+            </div>
           </div>
         </div>
       )}
