@@ -54,9 +54,15 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const todayStr = new Date().toISOString().split('T')[0];
   const todayRecords = records.filter(r => r.studentId === linkedStudent.id && r.date === todayStr);
 
-  const myNotifications = notifications.filter(
-    n => n.studentName === linkedStudent.name || n.recipientRole === 'orang_tua'
-  );
+  const myNotifications = notifications.filter(n => {
+    if (n.studentName) {
+      return n.studentName.toLowerCase().trim() === linkedStudent.name.toLowerCase().trim();
+    }
+    if (n.recipientId) {
+      return n.recipientId === linkedStudent.id || n.recipientId === linkedStudent.parentId;
+    }
+    return n.recipientRole === 'orang_tua' || n.recipientRole === 'ALL';
+  });
 
   const myPermits = permits.filter(
     p => p.studentId === linkedStudent.id || p.studentName === linkedStudent.name

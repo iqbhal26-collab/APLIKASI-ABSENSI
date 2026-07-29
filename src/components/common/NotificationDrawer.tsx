@@ -30,7 +30,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
       if (n.recipientId) return n.recipientId === currentUserId;
       return true;
     }
-    return true; // Show all for demo
+    return false;
   });
 
   return (

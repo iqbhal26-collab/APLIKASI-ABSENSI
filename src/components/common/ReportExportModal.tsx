@@ -60,28 +60,42 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       r => r.studentId === linkedStudent.id || r.studentName === linkedStudent.name
     );
   } else if (isHomeroomTeacher && currentUser) {
-    const teacherClasses = classes.filter(c => {
-      const isIdHandled = currentUser.classHandled && currentUser.classHandled.includes(c.id);
-      const isTeacherIdMatch = c.homeroomTeacherId === currentUser.id;
-      const isTeacherNameMatch = c.homeroomTeacherName && currentUser.name &&
-        c.homeroomTeacherName.toLowerCase().trim() === currentUser.name.toLowerCase().trim();
-      return isIdHandled || isTeacherIdMatch || isTeacherNameMatch;
-    });
+    const isHomeroomForClass = (user: typeof currentUser, c: SchoolClass) => {
+      if (user.classHandled && user.classHandled.includes(c.id)) return true;
+      if (c.homeroomTeacherId && c.homeroomTeacherId === user.id) return true;
+      if (user.name && c.homeroomTeacherName) {
+        const normUser = user.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normHR = c.homeroomTeacherName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (normUser === normHR) return true;
+        if (normUser.length > 2 && normHR.length > 2) {
+          if (normUser.includes(normHR) || normHR.includes(normUser)) return true;
+          const sanitize = (s: string) => s.toLowerCase()
+            .replace(/\b(s\.?pd|m\.?pd|m\.?si|dra|dr|h|hj|s\.?ag|s\.?kom|s\.?st)\b/gi, '')
+            .replace(/[^a-z0-9]/g, '')
+            .trim();
+          const userClean = sanitize(user.name);
+          const hrClean = sanitize(c.homeroomTeacherName);
+          if (userClean && hrClean && (userClean.includes(hrClean) || hrClean.includes(userClean))) return true;
+        }
+      }
+      return false;
+    };
 
-    if (teacherClasses.length > 0) {
-      effectiveClasses = teacherClasses;
-      const classIds = new Set(teacherClasses.map(c => c.id));
-      const classNames = new Set(teacherClasses.map(c => c.name));
+    const teacherClasses = classes.filter(c => isHomeroomForClass(currentUser, c));
+    const activeTeacherClasses = teacherClasses.length > 0 ? teacherClasses : (classes.length > 0 ? [classes[0]] : []);
 
-      effectiveStudents = students.filter(
-        s => classIds.has(s.classId) || classNames.has(s.className)
-      );
-      const studentIds = new Set(effectiveStudents.map(s => s.id));
+    effectiveClasses = activeTeacherClasses;
+    const classIds = new Set(activeTeacherClasses.map(c => c.id));
+    const classNames = new Set(activeTeacherClasses.map(c => c.name));
 
-      effectiveRecords = attendanceRecords.filter(
-        r => studentIds.has(r.studentId) || classNames.has(r.className)
-      );
-    }
+    effectiveStudents = students.filter(
+      s => classIds.has(s.classId) || classNames.has(s.className)
+    );
+    const studentIds = new Set(effectiveStudents.map(s => s.id));
+
+    effectiveRecords = attendanceRecords.filter(
+      r => studentIds.has(r.studentId) || classNames.has(r.className)
+    );
   }
 
   // Filter activities for religion teacher: only Dzuhur and Jumat

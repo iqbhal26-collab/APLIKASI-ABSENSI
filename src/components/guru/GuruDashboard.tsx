@@ -43,9 +43,16 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   const classStudents = students.filter(s => s.classId === currentClass?.id || s.className === currentClass?.name);
   const selectedActivity = activities.find(a => a.code === selectedActivityCode) || activities[0];
 
-  const pendingPermits = permits.filter(
-    p => (p.className === currentClass?.name || activeClasses.some(c => c.name === p.className)) && p.status === 'pending'
-  );
+  const pendingPermits = permits.filter(p => {
+    if (p.status !== 'pending') return false;
+    if (!currentClass) return false;
+    const matchesClassName = p.className && currentClass.name &&
+      p.className.toLowerCase().trim() === currentClass.name.toLowerCase().trim();
+    const matchesStudent = classStudents.some(s =>
+      s.id === p.studentId || (p.studentName && s.name && s.name.toLowerCase().trim() === p.studentName.toLowerCase().trim())
+    );
+    return matchesClassName || matchesStudent;
+  });
 
   return (
     <div className="space-y-6">
