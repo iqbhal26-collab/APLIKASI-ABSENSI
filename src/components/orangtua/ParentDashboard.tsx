@@ -12,7 +12,15 @@ import {
   Send,
   Bell,
   Sparkles,
-  PhoneCall
+  PhoneCall,
+  Upload,
+  Paperclip,
+  FileText,
+  Image as ImageIcon,
+  X,
+  Eye,
+  Check,
+  FileCheck
 } from 'lucide-react';
 
 interface ParentDashboardProps {
@@ -39,6 +47,9 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const [reason, setReason] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [attachmentFileName, setAttachmentFileName] = useState<string>('');
+  const [previewAttachmentUrl, setPreviewAttachmentUrl] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayRecords = records.filter(r => r.studentId === linkedStudent.id && r.date === todayStr);
@@ -46,6 +57,27 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
   const myNotifications = notifications.filter(
     n => n.studentName === linkedStudent.name || n.recipientRole === 'orang_tua'
   );
+
+  const myPermits = permits.filter(
+    p => p.studentId === linkedStudent.id || p.studentName === linkedStudent.name
+  );
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ukuran berkas maksimal 5MB.');
+      return;
+    }
+
+    setAttachmentFileName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAttachmentUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handlePermitSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +93,12 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
       startDate,
       endDate,
       reason,
+      attachmentUrl: attachmentUrl || undefined
     });
 
     setReason('');
+    setAttachmentUrl('');
+    setAttachmentFileName('');
     setIsPermitModalOpen(false);
   };
 
@@ -186,6 +221,79 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
         </div>
       </div>
 
+      {/* History of Submitted Permits */}
+      <div className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-lg p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center space-x-2">
+            <HeartHandshake className="w-5 h-5 text-sky-400" />
+            <h3 className="font-bold text-white text-base">Riwayat Pengajuan Surat Izin / Sakit Ananda</h3>
+          </div>
+          <button
+            onClick={() => setIsPermitModalOpen(true)}
+            className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5 cursor-pointer"
+          >
+            <Send className="w-3.5 h-3.5 text-slate-950" />
+            <span>+ Ajukan Baru</span>
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {myPermits.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-6">
+              Belum ada riwayat pengajuan surat izin atau sakit.
+            </p>
+          ) : (
+            myPermits.map((p) => (
+              <div
+                key={p.id}
+                className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                      p.type === 'sakit'
+                        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    }`}>
+                      IZIN {p.type.toUpperCase()}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      p.status === 'approved'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : p.status === 'rejected'
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    }`}>
+                      {p.status === 'approved' ? 'DISETUJUI' : p.status === 'rejected' ? 'DITOLAK' : 'MENUNGGU WALI KELAS'}
+                    </span>
+                  </div>
+
+                  <p className="text-white font-medium mt-1">
+                    "{p.reason}"
+                  </p>
+
+                  <div className="flex items-center space-x-3 text-[11px] text-slate-400 font-mono pt-0.5">
+                    <span>Periode: {p.startDate} s/d {p.endDate}</span>
+                    <span>•</span>
+                    <span>Diajukan: {p.createdAt}</span>
+                  </div>
+                </div>
+
+                {p.attachmentUrl && (
+                  <button
+                    onClick={() => setPreviewAttachmentUrl(p.attachmentUrl || null)}
+                    className="px-3 py-2 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold rounded-xl transition-all flex items-center space-x-1.5 shrink-0 self-start sm:self-center cursor-pointer"
+                  >
+                    <Paperclip className="w-3.5 h-3.5 text-sky-300" />
+                    <span>Lihat Berkas</span>
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       {/* Real-time Push Alert Feed */}
       <div className="bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-lg p-6 space-y-4">
         <div className="flex items-center space-x-2 border-b border-white/10 pb-3">
@@ -232,7 +340,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
               <h3 className="font-bold text-base">Ajukan Surat Izin / Sakit Ananda</h3>
               <button
                 onClick={() => setIsPermitModalOpen(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 &times;
               </button>
@@ -247,7 +355,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setPermitType('sakit')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       permitType === 'sakit'
                         ? 'bg-sky-500 text-slate-950 border-sky-400 font-extrabold shadow-md'
                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
@@ -258,7 +366,7 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setPermitType('izin')}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                       permitType === 'izin'
                         ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-md'
                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
@@ -310,23 +418,132 @@ export const ParentDashboard: React.FC<ParentDashboardProps> = ({
                 />
               </div>
 
+              {/* Upload Berkas Pendukung */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Upload Berkas Pendukung (Surat Dokter / Foto Surat Izin):
+                </label>
+                {attachmentUrl ? (
+                  <div className="p-3 bg-white/5 border border-emerald-500/40 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center space-x-2 text-xs truncate">
+                      <FileCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="text-emerald-300 font-medium truncate">
+                        {attachmentFileName || 'Berkas_Pendukung_Izin.png'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewAttachmentUrl(attachmentUrl)}
+                        className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold transition-colors flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Eye className="w-3 h-3 text-sky-300" />
+                        <span>Pratinjau</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachmentUrl('');
+                          setAttachmentFileName('');
+                        }}
+                        className="p-1 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                        title="Hapus Berkas"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="border-2 border-dashed border-white/20 hover:border-emerald-500/50 bg-black/30 hover:bg-black/50 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all">
+                    <Upload className="w-6 h-6 text-emerald-400 mb-1" />
+                    <span className="text-xs text-slate-200 font-semibold">
+                      Klik untuk Pilih Berkas / Ambil Foto Surat
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                      Format: PNG, JPG, PDF, atau DOCX (Maks 5MB)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
               <div className="pt-4 flex justify-end space-x-2">
                 <button
                   type="button"
                   onClick={() => setIsPermitModalOpen(false)}
-                  className="px-4 py-2 text-slate-300 text-xs font-bold rounded-xl border border-white/10 bg-white/5 hover:bg-white/10"
+                  className="px-4 py-2 text-slate-300 text-xs font-bold rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 flex items-center space-x-1.5"
+                  className="px-5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 flex items-center space-x-1.5 cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Kirim Permohonan ke Wali Kelas</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Preview Attachment Image / Document */}
+      {previewAttachmentUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-white/15 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center space-x-2 text-white font-bold text-sm">
+                <Paperclip className="w-4 h-4 text-emerald-400" />
+                <span>Berkas Pendukung Surat Izin</span>
+              </div>
+              <button
+                onClick={() => setPreviewAttachmentUrl(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="max-h-[65vh] overflow-auto flex items-center justify-center rounded-2xl bg-black/50 p-2 border border-white/10">
+              {previewAttachmentUrl.startsWith('data:image') || previewAttachmentUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
+                <img
+                  src={previewAttachmentUrl}
+                  alt="Berkas Pendukung Surat Dokter / Izin"
+                  className="max-h-[60vh] object-contain rounded-xl shadow-md"
+                />
+              ) : (
+                <div className="text-center py-10 space-y-3">
+                  <FileText className="w-12 h-12 text-sky-400 mx-auto" />
+                  <p className="text-xs text-slate-300 font-medium">
+                    Dokumen / Berkas Terlampir
+                  </p>
+                  <a
+                    href={previewAttachmentUrl}
+                    download="Berkas_Pendukung_Izin"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-md"
+                  >
+                    <span>Unduh / Buka Dokumen</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setPreviewAttachmentUrl(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Tutup Pratinjau
+              </button>
+            </div>
           </div>
         </div>
       )}

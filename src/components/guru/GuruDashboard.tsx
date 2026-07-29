@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus } from '../../types';
-import { UserCheck, CheckCircle2, Clock, Calendar, FileText, Check, X, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { UserCheck, CheckCircle2, Clock, Calendar, FileText, Check, X, FileSpreadsheet, AlertCircle, Paperclip } from 'lucide-react';
 
 interface GuruDashboardProps {
   classes: SchoolClass[];
@@ -37,6 +37,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   );
   const [selectedActivityCode, setSelectedActivityCode] = useState<string>('DATANG');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [previewAttachmentUrl, setPreviewAttachmentUrl] = useState<string | null>(null);
 
   const currentClass = activeClasses.find(c => c.id === selectedClassId) || activeClasses[0];
   const classStudents = students.filter(s => s.classId === currentClass?.id || s.className === currentClass?.name);
@@ -136,22 +137,37 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
             {pendingPermits.map((p) => (
               <div key={p.id} className="p-3 bg-white/5 rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                 <div>
-                  <strong className="text-white">{p.studentName}</strong> ({p.type.toUpperCase()})
+                  <div className="flex items-center space-x-2">
+                    <strong className="text-white">{p.studentName}</strong>
+                    <span className="text-emerald-400 font-mono">({p.className})</span>
+                    <span className="px-2 py-0.5 bg-sky-500/20 text-sky-300 font-bold rounded-md uppercase text-[10px]">
+                      {p.type.toUpperCase()}
+                    </span>
+                  </div>
                   <div className="text-slate-300 mt-0.5">Alasan: "{p.reason}"</div>
-                  <div className="text-[10px] text-slate-400 font-mono">Waktu Pengajuan: {p.createdAt}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">Periode: {p.startDate} s/d {p.endDate} • Diajukan: {p.createdAt}</div>
                 </div>
 
-                <div className="flex items-center space-x-2 shrink-0">
+                <div className="flex items-center space-x-2 shrink-0 self-start sm:self-center">
+                  {p.attachmentUrl && (
+                    <button
+                      onClick={() => setPreviewAttachmentUrl(p.attachmentUrl || null)}
+                      className="px-2.5 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 font-bold rounded-lg transition-colors flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Paperclip className="w-3.5 h-3.5" />
+                      <span>Berkas</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => onApprovePermit(p.id, false)}
-                    className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold rounded-lg transition-colors flex items-center space-x-1"
+                    className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-bold rounded-lg transition-colors flex items-center space-x-1 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Tolak</span>
                   </button>
                   <button
                     onClick={() => onApprovePermit(p.id, true)}
-                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-md transition-colors flex items-center space-x-1"
+                    className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg shadow-md transition-colors flex items-center space-x-1 cursor-pointer"
                   >
                     <Check className="w-3.5 h-3.5" />
                     <span>Setujui</span>
@@ -281,6 +297,61 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Modal Preview Attachment Image / Document */}
+      {previewAttachmentUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-white/15 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center space-x-2 font-bold text-sm">
+                <Paperclip className="w-4 h-4 text-emerald-400" />
+                <span>Berkas Pendukung Surat Izin (Dari Orang Tua)</span>
+              </div>
+              <button
+                onClick={() => setPreviewAttachmentUrl(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="max-h-[65vh] overflow-auto flex items-center justify-center rounded-2xl bg-black/50 p-2 border border-white/10">
+              {previewAttachmentUrl.startsWith('data:image') || previewAttachmentUrl.match(/\.(jpg|jpeg|png|webp|gif)/i) ? (
+                <img
+                  src={previewAttachmentUrl}
+                  alt="Berkas Surat Dokter / Izin"
+                  className="max-h-[60vh] object-contain rounded-xl shadow-md"
+                />
+              ) : (
+                <div className="text-center py-10 space-y-3">
+                  <FileText className="w-12 h-12 text-sky-400 mx-auto" />
+                  <p className="text-xs text-slate-300 font-medium">
+                    Dokumen / Berkas Surat Izin Terlampir
+                  </p>
+                  <a
+                    href={previewAttachmentUrl}
+                    download="Berkas_Pendukung_Surat_Izin"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-md"
+                  >
+                    <span>Unduh / Buka Dokumen</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setPreviewAttachmentUrl(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Tutup Pratinjau
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
