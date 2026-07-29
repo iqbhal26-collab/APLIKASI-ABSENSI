@@ -16,6 +16,7 @@ export const initialSchoolConfig: SchoolConfig = {
   principalName: 'Dr. H. Hendra Wijaya, M.Pd.',
   principalNip: '19680512 199303 1 004',
   toleranceMinutes: 15,
+  logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg/200px-Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg.png',
   useSupabaseLive: true,
   supabaseUrl: defaultSupabaseUrl,
   supabaseAnonKey: defaultSupabaseAnonKey,
@@ -183,7 +184,7 @@ export const initialUsers: User[] = [
   {
     id: 'user-admin-1',
     username: 'admin',
-    name: 'Drs. H. Ahmad Fauzi, M.Pd',
+    name: 'IQBAL PRATAMA, S.Kom., Gr.',
     role: 'admin',
     email: 'admin@sman1edukasi.sch.id',
     phone: '081100001111',

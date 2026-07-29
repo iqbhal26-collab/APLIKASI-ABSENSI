@@ -66,7 +66,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           const adminUser = users.find(u => u.role === 'admin') || {
             id: 'user-admin-1',
             username: 'admin',
-            name: 'Drs. H. Ahmad Fauzi, M.Pd',
+            name: 'IQBAL PRATAMA, S.Kom., Gr.',
             role: 'admin',
             email: 'admin@sman1edukasi.sch.id',
           };

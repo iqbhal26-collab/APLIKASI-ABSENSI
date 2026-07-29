@@ -123,6 +123,71 @@ export const exportAttendanceToExcel = (
   XLSX.writeFile(workbook, fileName);
 };
 
+// Helper to create crisp SMA school emblem logo data URL using Canvas
+export function getDefaultSmaLogoDataUrl(): string {
+  try {
+    if (typeof document === 'undefined') return '';
+    const canvas = document.createElement('canvas');
+    canvas.width = 140;
+    canvas.height = 140;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    // Outer circle - Emerald
+    ctx.beginPath();
+    ctx.arc(70, 70, 64, 0, 2 * Math.PI);
+    ctx.fillStyle = '#065f46';
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#fbbf24';
+    ctx.stroke();
+
+    // Inner circle
+    ctx.beginPath();
+    ctx.arc(70, 70, 56, 0, 2 * Math.PI);
+    ctx.fillStyle = '#047857';
+    ctx.fill();
+
+    // Emblem Shield
+    ctx.beginPath();
+    ctx.moveTo(70, 28);
+    ctx.lineTo(96, 50);
+    ctx.lineTo(88, 86);
+    ctx.lineTo(70, 78);
+    ctx.lineTo(52, 86);
+    ctx.lineTo(44, 50);
+    ctx.closePath();
+    ctx.fillStyle = '#fbbf24';
+    ctx.fill();
+
+    // Open Book shape
+    ctx.beginPath();
+    ctx.moveTo(38, 80);
+    ctx.quadraticCurveTo(70, 66, 102, 80);
+    ctx.lineTo(98, 94);
+    ctx.quadraticCurveTo(70, 80, 42, 94);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Center emblem star
+    ctx.beginPath();
+    ctx.arc(70, 42, 7, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Text "SMA BULUKUMBA"
+    ctx.font = 'bold 10px Arial, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.fillText('SMA BULUKUMBA', 70, 114);
+
+    return canvas.toDataURL('image/png');
+  } catch (e) {
+    return '';
+  }
+}
+
 export const exportAttendanceToPDF = (
   records: AttendanceRecord[],
   students: Student[],
@@ -145,15 +210,28 @@ export const exportAttendanceToPDF = (
 
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Header Kop Surat
-  if (config.logoUrl) {
+  // Header Kop Surat - Render School Logo
+  let logoData = config.logoUrl;
+  if (!logoData || !logoData.trim()) {
+    logoData = getDefaultSmaLogoDataUrl();
+  }
+
+  if (logoData) {
     try {
-      doc.addImage(config.logoUrl, 'PNG', 14, 9, 16, 16);
+      doc.addImage(logoData, 'PNG', 14, 8, 18, 18);
     } catch (e) {
       try {
-        doc.addImage(config.logoUrl, 'JPEG', 14, 9, 16, 16);
+        doc.addImage(logoData, 'JPEG', 14, 8, 18, 18);
       } catch (e2) {
-        console.warn('Could not add logo image to PDF export:', e2);
+        // Fallback to generated canvas logo
+        try {
+          const fallbackLogo = getDefaultSmaLogoDataUrl();
+          if (fallbackLogo) {
+            doc.addImage(fallbackLogo, 'PNG', 14, 8, 18, 18);
+          }
+        } catch (e3) {
+          console.warn('Could not add logo image to PDF export:', e3);
+        }
       }
     }
   }
@@ -256,7 +334,7 @@ export const exportAttendanceToPDF = (
   doc.text(`Bulukumba, ${todayFormatted}`, pageWidth - 70, signatureY);
   doc.text('Mengetahui,', 14, signatureY);
   doc.text('Kepala Sekolah', 14, signatureY + 5);
-  doc.text('Wali Kelas / Petugas Absensi', pageWidth - 70, signatureY + 5);
+  doc.text('Admin / Petugas Absensi', pageWidth - 70, signatureY + 5);
 
   doc.setFont('helvetica', 'bold');
   doc.text(config.principalName, 14, signatureY + 22);
@@ -264,9 +342,9 @@ export const exportAttendanceToPDF = (
   doc.text(`NIP. ${config.principalNip}`, 14, signatureY + 26);
 
   doc.setFont('helvetica', 'bold');
-  doc.text('( .................................................... )', pageWidth - 70, signatureY + 22);
+  doc.text('IQBAL PRATAMA, S.Kom., Gr.', pageWidth - 70, signatureY + 22);
   doc.setFont('helvetica', 'normal');
-  doc.text('NIP. -', pageWidth - 70, signatureY + 26);
+  doc.text('NIP. 19920510 202012 1 002', pageWidth - 70, signatureY + 26);
 
   const fileName = `Laporan_Absensi_${config.schoolName.replace(/\s+/g, '_')}_${filter.className || 'Semua'}_${filter.month || 'Bulan'}.pdf`;
   doc.save(fileName);
