@@ -8,7 +8,7 @@ const defaultSupabaseUrl = metaEnv.VITE_SUPABASE_URL || PERMANENT_SUPABASE_URL;
 const defaultSupabaseAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || PERMANENT_SUPABASE_ANON_KEY;
 
 export const initialSchoolConfig: SchoolConfig = {
-  schoolName: 'SMA NEGERI 1 EDUKASI BANGSA',
+  schoolName: 'SMAN 2 BULUKUMBA',
   npsn: '20103482',
   address: 'Jl. Pendidikan No. 45, Ujung Bulu, Kab. Bulukumba, Sulawesi Selatan 92511',
   academicYear: '2025/2026',

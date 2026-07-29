@@ -119,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Sistem Presensi Live</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-tight">
-            SMA Negeri 1 Prestasi
+            SMAN 2 Bulukumba
             <br />
             <span className="text-emerald-400/90 font-mono text-[10px]">Toleransi: 15 Menit</span>
           </p>

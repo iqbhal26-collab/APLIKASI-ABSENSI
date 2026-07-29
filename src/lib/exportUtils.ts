@@ -344,7 +344,7 @@ export const exportAttendanceToPDF = (
   doc.setFont('helvetica', 'bold');
   doc.text('IQBAL PRATAMA, S.Kom., Gr.', pageWidth - 70, signatureY + 22);
   doc.setFont('helvetica', 'normal');
-  doc.text('NIP. 19920510 202012 1 002', pageWidth - 70, signatureY + 26);
+  doc.text('NIP. 19890426 202221 1 012', pageWidth - 70, signatureY + 26);
 
   const fileName = `Laporan_Absensi_${config.schoolName.replace(/\s+/g, '_')}_${filter.className || 'Semua'}_${filter.month || 'Bulan'}.pdf`;
   doc.save(fileName);

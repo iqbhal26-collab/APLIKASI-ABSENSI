@@ -78,8 +78,10 @@ export default function App() {
     const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
     const url = parsed.supabaseUrl || metaEnv.VITE_SUPABASE_URL || initialSchoolConfig.supabaseUrl || PERMANENT_SUPABASE_URL;
     const key = parsed.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || initialSchoolConfig.supabaseAnonKey || PERMANENT_SUPABASE_ANON_KEY;
+    const sName = (!parsed.schoolName || parsed.schoolName.includes('EDUKASI') || parsed.schoolName.includes('Prestasi')) ? 'SMAN 2 BULUKUMBA' : parsed.schoolName;
     return {
       ...parsed,
+      schoolName: sName,
       supabaseUrl: url,
       supabaseAnonKey: key,
       useSupabaseLive: true,
