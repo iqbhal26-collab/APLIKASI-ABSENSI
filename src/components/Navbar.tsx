@@ -121,13 +121,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             {/* Kios Scanner Button */}
-            <button
-              onClick={onOpenScanner}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-            >
-              <QrCode className="w-4 h-4 text-slate-950" />
-              <span className="hidden md:inline">Scan QR Absen</span>
-            </button>
+            {currentUser.role !== 'orang_tua' && (
+              <button
+                onClick={onOpenScanner}
+                className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
+              >
+                <QrCode className="w-4 h-4 text-slate-950" />
+                <span className="hidden md:inline">Scan QR Absen</span>
+              </button>
+            )}
 
             {/* Notification Bell */}
             <button
