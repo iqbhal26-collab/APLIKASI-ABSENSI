@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SchoolClass, ActivityType, AttendanceRecord, Student, SchoolConfig, UserRole, User } from '../../types';
 import { exportAttendanceToExcel, exportAttendanceToPDF } from '../../lib/exportUtils';
+import { getTeacherClasses } from '../../lib/teacherUtils';
 import { FileSpreadsheet, FileText, X, Download, Filter, Calendar, Moon, Users, UserCheck } from 'lucide-react';
 
 interface ReportExportModalProps {
@@ -60,41 +61,19 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       r => r.studentId === linkedStudent.id || r.studentName === linkedStudent.name
     );
   } else if (isHomeroomTeacher && currentUser) {
-    const isHomeroomForClass = (user: typeof currentUser, c: SchoolClass) => {
-      if (user.classHandled && user.classHandled.includes(c.id)) return true;
-      if (c.homeroomTeacherId && c.homeroomTeacherId === user.id) return true;
-      if (user.name && c.homeroomTeacherName) {
-        const normUser = user.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const normHR = c.homeroomTeacherName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (normUser === normHR) return true;
-        if (normUser.length > 2 && normHR.length > 2) {
-          if (normUser.includes(normHR) || normHR.includes(normUser)) return true;
-          const sanitize = (s: string) => s.toLowerCase()
-            .replace(/\b(s\.?pd|m\.?pd|m\.?si|dra|dr|h|hj|s\.?ag|s\.?kom|s\.?st)\b/gi, '')
-            .replace(/[^a-z0-9]/g, '')
-            .trim();
-          const userClean = sanitize(user.name);
-          const hrClean = sanitize(c.homeroomTeacherName);
-          if (userClean && hrClean && (userClean.includes(hrClean) || hrClean.includes(userClean))) return true;
-        }
-      }
-      return false;
-    };
-
-    const teacherClasses = classes.filter(c => isHomeroomForClass(currentUser, c));
-    const activeTeacherClasses = teacherClasses.length > 0 ? teacherClasses : (classes.length > 0 ? [classes[0]] : []);
+    const activeTeacherClasses = getTeacherClasses(currentUser, classes);
 
     effectiveClasses = activeTeacherClasses;
     const classIds = new Set(activeTeacherClasses.map(c => c.id));
-    const classNames = new Set(activeTeacherClasses.map(c => c.name));
+    const classNamesNorm = new Set(activeTeacherClasses.map(c => c.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
 
     effectiveStudents = students.filter(
-      s => classIds.has(s.classId) || classNames.has(s.className)
+      s => classIds.has(s.classId) || (s.className && classNamesNorm.has(s.className.toLowerCase().replace(/[^a-z0-9]/g, '')))
     );
     const studentIds = new Set(effectiveStudents.map(s => s.id));
 
     effectiveRecords = attendanceRecords.filter(
-      r => studentIds.has(r.studentId) || classNames.has(r.className)
+      r => studentIds.has(r.studentId) || (r.className && classNamesNorm.has(r.className.toLowerCase().replace(/[^a-z0-9]/g, '')))
     );
   }
 
@@ -109,7 +88,7 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
     if ((isParent || isStudentRole) && linkedStudent) {
       return linkedStudent.className;
     }
-    if (isHomeroomTeacher && effectiveClasses.length === 1) {
+    if (isHomeroomTeacher && effectiveClasses.length > 0) {
       return effectiveClasses[0].name;
     }
     return 'ALL';

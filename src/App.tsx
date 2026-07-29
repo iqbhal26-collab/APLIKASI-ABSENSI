@@ -57,6 +57,7 @@ import { NotificationDrawer } from './components/common/NotificationDrawer';
 import { ReportExportModal } from './components/common/ReportExportModal';
 import { ExcelImportModal } from './components/admin/ExcelImportModal';
 import { ParsedStudentRow, ParsedTeacherRow } from './lib/excelTemplates';
+import { getTeacherClasses } from './lib/teacherUtils';
 
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { TeacherManagement } from './components/admin/TeacherManagement';
@@ -981,29 +982,7 @@ export default function App() {
           );
       }
     } else if (currentUser.role === 'guru') {
-      const isHomeroomTeacherForClass = (user: typeof currentUser, c: SchoolClass) => {
-        if (user.classHandled && user.classHandled.includes(c.id)) return true;
-        if (c.homeroomTeacherId && c.homeroomTeacherId === user.id) return true;
-        if (user.name && c.homeroomTeacherName) {
-          const normUser = user.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const normHR = c.homeroomTeacherName.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (normUser === normHR) return true;
-          if (normUser.length > 2 && normHR.length > 2) {
-            if (normUser.includes(normHR) || normHR.includes(normUser)) return true;
-            const sanitize = (s: string) => s.toLowerCase()
-              .replace(/\b(s\.?pd|m\.?pd|m\.?si|dra|dr|h|hj|s\.?ag|s\.?kom|s\.?st)\b/gi, '')
-              .replace(/[^a-z0-9]/g, '')
-              .trim();
-            const userClean = sanitize(user.name);
-            const hrClean = sanitize(c.homeroomTeacherName);
-            if (userClean && hrClean && (userClean.includes(hrClean) || hrClean.includes(userClean))) return true;
-          }
-        }
-        return false;
-      };
-
-      const teacherHandledClasses = classes.filter(c => isHomeroomTeacherForClass(currentUser, c));
-      const activeTeacherClasses = teacherHandledClasses.length > 0 ? teacherHandledClasses : (classes.length > 0 ? [classes[0]] : []);
+      const activeTeacherClasses = getTeacherClasses(currentUser, classes);
 
       return (
         <GuruDashboard
@@ -1013,6 +992,7 @@ export default function App() {
           records={attendanceRecords}
           permits={permits}
           teacherClassHandled={activeTeacherClasses.map(c => c.id)}
+          currentUser={currentUser}
           onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onApprovePermit={handleApprovePermit}
           onOpenExportModal={() => setIsExportModalOpen(true)}

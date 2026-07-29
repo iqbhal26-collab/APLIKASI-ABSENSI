@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus } from '../../types';
+import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus, User } from '../../types';
 import { UserCheck, CheckCircle2, Clock, Calendar, FileText, Check, X, FileSpreadsheet, AlertCircle, Paperclip } from 'lucide-react';
 
 interface GuruDashboardProps {
@@ -9,6 +9,7 @@ interface GuruDashboardProps {
   records: AttendanceRecord[];
   permits: PermitSubmission[];
   teacherClassHandled?: string[];
+  currentUser?: User;
   onUpdateAttendanceStatus: (studentId: string, activityCode: string, newStatus: AttendanceStatus, notes?: string) => void;
   onApprovePermit: (permitId: string, isApproved: boolean) => void;
   onOpenExportModal: () => void;
@@ -21,16 +22,12 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   records,
   permits,
   teacherClassHandled,
+  currentUser,
   onUpdateAttendanceStatus,
   onApprovePermit,
   onOpenExportModal
 }) => {
-  // Filter classes to only those handled by this teacher
-  const handledClasses = (teacherClassHandled && teacherClassHandled.length > 0)
-    ? classes.filter(c => teacherClassHandled.includes(c.id))
-    : classes;
-
-  const activeClasses = handledClasses.length > 0 ? handledClasses : classes;
+  const activeClasses = classes;
 
   const [selectedClassId, setSelectedClassId] = useState<string>(
     activeClasses[0]?.id || ''
@@ -40,17 +37,28 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   const [previewAttachmentUrl, setPreviewAttachmentUrl] = useState<string | null>(null);
 
   const currentClass = activeClasses.find(c => c.id === selectedClassId) || activeClasses[0];
-  const classStudents = students.filter(s => s.classId === currentClass?.id || s.className === currentClass?.name);
+  const classStudents = students.filter(s => {
+    if (!currentClass) return false;
+    if (s.classId === currentClass.id) return true;
+    if (s.className && currentClass.name) {
+      return s.className.toLowerCase().replace(/[^a-z0-9]/g, '') === currentClass.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    return false;
+  });
   const selectedActivity = activities.find(a => a.code === selectedActivityCode) || activities[0];
 
   const pendingPermits = permits.filter(p => {
     if (p.status !== 'pending') return false;
     if (!currentClass) return false;
-    const matchesClassName = p.className && currentClass.name &&
-      p.className.toLowerCase().trim() === currentClass.name.toLowerCase().trim();
+
+    const cNameNorm = currentClass.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const pNameNorm = (p.className || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const matchesClassName = pNameNorm === cNameNorm;
     const matchesStudent = classStudents.some(s =>
-      s.id === p.studentId || (p.studentName && s.name && s.name.toLowerCase().trim() === p.studentName.toLowerCase().trim())
+      s.id === p.studentId || (p.studentName && s.name && s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === p.studentName.toLowerCase().replace(/[^a-z0-9]/g, ''))
     );
+
     return matchesClassName || matchesStudent;
   });
 
