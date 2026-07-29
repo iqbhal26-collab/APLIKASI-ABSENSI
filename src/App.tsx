@@ -470,7 +470,7 @@ export default function App() {
   };
 
   // Bulk Import Students from Excel
-  const handleImportStudentsBulk = (
+  const handleImportStudentsBulk = async (
     parsedStudents: ParsedStudentRow[],
     autoCreateClasses: boolean
   ) => {
@@ -480,7 +480,7 @@ export default function App() {
     const newStudentList: Student[] = [];
 
     parsedStudents.forEach((p, idx) => {
-      const clsNameKey = p.className.toLowerCase().trim();
+      const clsNameKey = p.className ? p.className.toLowerCase().trim() : 'x ipa 1';
       let matchedClass = currentClassesMap.get(clsNameKey);
 
       if (!matchedClass && autoCreateClasses) {
@@ -495,7 +495,7 @@ export default function App() {
 
         matchedClass = {
           id: newClsId,
-          name: p.className,
+          name: p.className || 'X IPA 1',
           grade,
           major,
           homeroomTeacherId: '',
@@ -505,36 +505,50 @@ export default function App() {
         currentClassesMap.set(clsNameKey, matchedClass);
         newClassesAdded.push(matchedClass);
       } else if (matchedClass) {
-        matchedClass.studentCount += 1;
+        matchedClass.studentCount = (matchedClass.studentCount || 0) + 1;
         currentClassesMap.set(clsNameKey, matchedClass);
       }
 
       const stdId = `std-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`;
+      const fallbackNis = p.nis || `${Date.now().toString().slice(-6)}${idx}`;
       const newStd: Student = {
         id: stdId,
-        nis: p.nis,
-        nisn: p.nisn,
+        nis: fallbackNis,
+        nisn: p.nisn || fallbackNis,
         name: p.name,
-        gender: p.gender,
+        gender: p.gender || 'L',
         classId: matchedClass?.id || classes[0]?.id || 'cls-1',
-        className: p.className,
+        className: p.className || matchedClass?.name || 'X IPA 1',
         parentId: `user-ortu-${stdId}`,
         parentName: p.parentName || 'Orang Tua Siswa',
         parentPhone: p.parentPhone || '081200000000',
-        qrCode: `QR-STD-${p.nis}`,
+        qrCode: `QR-STD-${fallbackNis}`,
       };
       newStudentList.push(newStd);
     });
 
-    if (newStudentList.length === 0) return;
+    if (newStudentList.length === 0) {
+      alert('Tidak ada data siswa yang dapat diimport. Pastikan file Excel berisi kolom nama siswa.');
+      return;
+    }
 
-    // Update state
-    setStudents(prev => [...prev, ...newStudentList]);
-    setClasses(Array.from(currentClassesMap.values()));
-    dbUpdateClasses(schoolConfig, Array.from(currentClassesMap.values()));
+    const updatedClasses = Array.from(currentClassesMap.values());
+    const updatedStudents = [...students, ...newStudentList];
 
-    // Sync students to Supabase
-    dbBatchAddStudents(schoolConfig, newStudentList);
+    // Update state immediately
+    setStudents(updatedStudents);
+    setClasses(updatedClasses);
+
+    // Save to localStorage immediately
+    localStorage.setItem('sma_students', JSON.stringify(updatedStudents));
+    localStorage.setItem('sma_classes', JSON.stringify(updatedClasses));
+
+    // Alert user immediately
+    alert(`BERHASIL IMPORT DATA: ${newStudentList.length} siswa berhasil ditambahkan dan disimpan!`);
+
+    // Sync classes then students to Supabase Cloud
+    await dbUpdateClasses(schoolConfig, updatedClasses);
+    await dbBatchAddStudents(schoolConfig, newStudentList);
   };
 
   // Bulk Import Teachers / Wali Kelas from Excel

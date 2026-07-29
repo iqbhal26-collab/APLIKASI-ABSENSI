@@ -44,7 +44,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       s.nisn.includes(searchTerm) ||
       s.parentName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchClass = selectedClassFilter === 'ALL' || s.classId === selectedClassFilter;
+    const selectedClassObj = classes.find(c => c.id === selectedClassFilter);
+    const matchClass = selectedClassFilter === 'ALL' ||
+      s.classId === selectedClassFilter ||
+      s.className === selectedClassFilter ||
+      (selectedClassObj && s.className?.toLowerCase().trim() === selectedClassObj.name?.toLowerCase().trim());
     return matchSearch && matchClass;
   });
 

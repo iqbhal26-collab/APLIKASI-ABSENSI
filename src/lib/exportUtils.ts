@@ -146,6 +146,18 @@ export const exportAttendanceToPDF = (
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Header Kop Surat
+  if (config.logoUrl) {
+    try {
+      doc.addImage(config.logoUrl, 'PNG', 14, 9, 16, 16);
+    } catch (e) {
+      try {
+        doc.addImage(config.logoUrl, 'JPEG', 14, 9, 16, 16);
+      } catch (e2) {
+        console.warn('Could not add logo image to PDF export:', e2);
+      }
+    }
+  }
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.text(config.schoolName.toUpperCase(), pageWidth / 2, 14, { align: 'center' });
@@ -241,7 +253,7 @@ export const exportAttendanceToPDF = (
   const signatureY = Math.min(finalY + 15, doc.internal.pageSize.getHeight() - 35);
   const todayFormatted = formatIndonesianDate(new Date().toISOString().split('T')[0]);
 
-  doc.text(`Jakarta, ${todayFormatted}`, pageWidth - 70, signatureY);
+  doc.text(`Bulukumba, ${todayFormatted}`, pageWidth - 70, signatureY);
   doc.text('Mengetahui,', 14, signatureY);
   doc.text('Kepala Sekolah', 14, signatureY + 5);
   doc.text('Wali Kelas / Petugas Absensi', pageWidth - 70, signatureY + 5);

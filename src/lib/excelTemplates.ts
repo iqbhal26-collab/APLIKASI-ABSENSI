@@ -174,7 +174,29 @@ export interface ParsedTeacherRow {
 }
 
 /**
- * Parse uploaded Excel file into raw JSON rows
+ * Flexible helper to extract a value from a row object using multiple keyword matches
+ */
+function extractRowValue(row: Record<string, any>, keywords: string[]): string {
+  if (!row || typeof row !== 'object') return '';
+  const keys = Object.keys(row);
+
+  for (const keyword of keywords) {
+    const cleanKw = keyword.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const matchedKey = keys.find(k => {
+      const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return cleanK === cleanKw || cleanK.includes(cleanKw);
+    });
+
+    if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null) {
+      const val = String(row[matchedKey]).trim();
+      if (val !== '') return val;
+    }
+  }
+  return '';
+}
+
+/**
+ * Parse uploaded Excel file into raw JSON rows with automatic header row detection
  */
 export async function parseExcelData(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
@@ -185,7 +207,33 @@ export async function parseExcelData(file: File): Promise<any[]> {
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const jsonResult = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        
+        // 1. Get raw 2D array representation to detect true header row index
+        const rawArray: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        if (!rawArray || rawArray.length === 0) {
+          resolve([]);
+          return;
+        }
+
+        let headerRowIndex = 0;
+        for (let i = 0; i < Math.min(rawArray.length, 10); i++) {
+          const rowStr = rawArray[i].map(c => String(c).toLowerCase()).join(' ');
+          if (
+            rowStr.includes('nama') ||
+            rowStr.includes('nis') ||
+            rowStr.includes('kelas') ||
+            rowStr.includes('nip')
+          ) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        const jsonResult = XLSX.utils.sheet_to_json(worksheet, {
+          range: headerRowIndex,
+          defval: ''
+        });
+
         resolve(jsonResult);
       } catch (error) {
         reject(error);
@@ -205,28 +253,39 @@ export function normalizeStudentImportRows(
 ): ParsedStudentRow[] {
   const classTracker: Record<string, number> = { ...existingClassCounts };
 
-  return rawRows.map((row) => {
+  // Filter out completely blank rows
+  const validRawRows = rawRows.filter(row => {
+    if (!row || typeof row !== 'object') return false;
+    const values = Object.values(row).map(v => String(v).trim()).filter(Boolean);
+    return values.length > 0;
+  });
+
+  return validRawRows.map((row, idx) => {
     // Flexibly match headers
-    const nis = String(row['NIS'] || row['nis'] || row['Nis'] || '').trim();
-    const nisn = String(row['NISN'] || row['nisn'] || row['Nisn'] || '').trim();
-    const name = String(row['Nama_Lengkap_Siswa'] || row['Nama Lengkap Siswa'] || row['Nama'] || row['nama'] || '').trim();
-    let genderStr = String(row['Jenis_Kelamin'] || row['Jenis Kelamin'] || row['JK'] || row['jk'] || 'L').trim().toUpperCase();
-    const className = String(row['Kelas'] || row['kelas'] || row['Nama Kelas'] || 'X IPA 1').trim();
-    const parentName = String(row['Nama_Orang_Tua'] || row['Nama Orang Tua'] || row['Orang Tua'] || 'Orang Tua Siswa').trim();
-    const parentPhone = String(row['No_WhatsApp_Orang_Tua'] || row['No WhatsApp Orang Tua'] || row['No HP'] || row['Phone'] || '081200000000').trim();
+    const name = extractRowValue(row, ['nama_lengkap_siswa', 'nama_lengkap', 'nama_siswa', 'nama_murid', 'nama', 'student_name', 'name']);
+    let nis = extractRowValue(row, ['nis', 'no_induk', 'nomor_induk', 'induk', 'id_siswa', 'nisn']);
+    let nisn = extractRowValue(row, ['nisn', 'nomor_nisn', 'no_nisn', 'nis']);
+    let genderStr = extractRowValue(row, ['jenis_kelamin', 'jeniskelamin', 'jk', 'l/p', 'gender', 'sex']).toUpperCase();
+    let className = extractRowValue(row, ['kelas', 'namakelas', 'nama_kelas', 'rombel', 'class', 'grade']);
+    let parentName = extractRowValue(row, ['nama_orang_tua', 'nama_ortu', 'orang_tua', 'ortu', 'wali', 'nama_wali', 'parent']);
+    let parentPhone = extractRowValue(row, ['no_whatsapp_orang_tua', 'no_whatsapp', 'no_hp', 'no_wa', 'hp_ortu', 'phone', 'whatsapp', 'kontak', 'telepon']);
+
+    // Defaults and fallbacks
+    if (!className) className = 'X IPA 1';
+    if (!parentName) parentName = 'Orang Tua Siswa';
+    if (!parentPhone) parentPhone = '081200000000';
+    if (!nis && name) nis = `100${idx + 1}`;
+    if (!nisn) nisn = nis;
 
     let gender: 'L' | 'P' = 'L';
-    if (genderStr === 'P' || genderStr.startsWith('PEREMPUAN') || genderStr.startsWith('FEMALE')) {
+    if (genderStr === 'P' || genderStr.startsWith('PEREMPUAN') || genderStr.startsWith('FEMALE') || genderStr.includes('PEREMPUAN')) {
       gender = 'P';
     }
 
     let isValid = true;
     let validationError = '';
 
-    if (!nis) {
-      isValid = false;
-      validationError = 'NIS kosong';
-    } else if (!name) {
+    if (!name) {
       isValid = false;
       validationError = 'Nama siswa kosong';
     } else {
@@ -242,7 +301,7 @@ export function normalizeStudentImportRows(
 
     return {
       nis,
-      nisn: nisn || nis,
+      nisn,
       name,
       gender,
       className,
@@ -258,14 +317,20 @@ export function normalizeStudentImportRows(
  * Convert raw json rows into validated ParsedTeacherRow list
  */
 export function normalizeTeacherImportRows(rawRows: any[]): ParsedTeacherRow[] {
-  return rawRows.map((row) => {
-    const nip = String(row['NIP_KODE_GURU'] || row['NIP'] || row['Kode Guru'] || '').trim();
-    const name = String(row['Nama_Lengkap_Guru'] || row['Nama Lengkap Guru'] || row['Nama'] || '').trim();
-    const username = String(row['Username'] || row['username'] || row['User'] || '').trim();
-    const password = String(row['Password_Awal'] || row['Password'] || 'guru123').trim();
-    const phone = String(row['No_WhatsApp'] || row['No HP'] || row['Phone'] || '081200000000').trim();
-    const email = String(row['Email'] || row['email'] || '').trim();
-    const className = String(row['Wali_Kelas_Diampu'] || row['Wali Kelas'] || row['Kelas'] || '').trim();
+  const validRawRows = rawRows.filter(row => {
+    if (!row || typeof row !== 'object') return false;
+    const values = Object.values(row).map(v => String(v).trim()).filter(Boolean);
+    return values.length > 0;
+  });
+
+  return validRawRows.map((row, idx) => {
+    const nip = extractRowValue(row, ['nip_kode_guru', 'nip', 'kode_guru', 'nip_guru']);
+    const name = extractRowValue(row, ['nama_lengkap_guru', 'nama_lengkap', 'nama_guru', 'nama', 'teacher_name', 'name']);
+    const username = extractRowValue(row, ['username', 'user', 'id_user']);
+    const password = extractRowValue(row, ['password_awal', 'password', 'pass']) || 'guru123';
+    const phone = extractRowValue(row, ['no_whatsapp', 'no_hp', 'no_wa', 'phone', 'whatsapp', 'kontak', 'telepon']) || '081200000000';
+    const email = extractRowValue(row, ['email', 'surel']);
+    const className = extractRowValue(row, ['wali_kelas_diampu', 'wali_kelas', 'kelas', 'rombel']);
 
     let isValid = true;
     let validationError = '';
@@ -273,18 +338,15 @@ export function normalizeTeacherImportRows(rawRows: any[]): ParsedTeacherRow[] {
     if (!name) {
       isValid = false;
       validationError = 'Nama guru kosong';
-    } else if (!username && !nip) {
-      isValid = false;
-      validationError = 'NIP atau Username kosong';
     }
 
     return {
       nip,
       name,
-      username: username || (nip ? `guru_${nip}` : `guru_${Date.now()}`),
+      username: username || (nip ? `guru_${nip}` : `guru_${Date.now()}_${idx}`),
       password,
       phone,
-      email: email || `${username || 'guru'}@sekolah.sch.id`,
+      email: email || `${username || 'guru'}_${idx}@sekolah.sch.id`,
       className,
       isValid,
       validationError,

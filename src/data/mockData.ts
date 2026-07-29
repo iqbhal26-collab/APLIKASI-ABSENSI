@@ -10,7 +10,7 @@ const defaultSupabaseAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || PERMANENT_SUPAB
 export const initialSchoolConfig: SchoolConfig = {
   schoolName: 'SMA NEGERI 1 EDUKASI BANGSA',
   npsn: '20103482',
-  address: 'Jl. Pendidikan No. 45, Kebayoran Baru, Jakarta Selatan, DKI Jakarta 12150',
+  address: 'Jl. Pendidikan No. 45, Ujung Bulu, Kab. Bulukumba, Sulawesi Selatan 92511',
   academicYear: '2025/2026',
   semester: 'Ganjil',
   principalName: 'Dr. H. Hendra Wijaya, M.Pd.',
