@@ -8,6 +8,7 @@ interface UserManagementProps {
   classes: SchoolClass[];
   onAddStudent: (student: Omit<Student, 'id' | 'qrCode'>) => void;
   onDeleteStudent: (id: string) => void;
+  onDeleteStudentsBulk?: (ids: string[]) => void;
   onOpenExcelImportModal?: () => void;
   onNavigateTab?: (tabId: string) => void;
 }
@@ -17,12 +18,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   classes,
   onAddStudent,
   onDeleteStudent,
+  onDeleteStudentsBulk,
   onOpenExcelImportModal,
   onNavigateTab
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Form State
   const [nis, setNis] = useState('');
@@ -55,6 +58,36 @@ export const UserManagement: React.FC<UserManagementProps> = ({
       (selectedClassObj && (s.className || '').toLowerCase().trim() === (selectedClassObj.name || '').toLowerCase().trim());
     return matchSearch && matchClass;
   });
+
+  const isAllSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.includes(s.id));
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      const filteredSet = new Set(filteredStudents.map(s => s.id));
+      setSelectedIds(prev => prev.filter(id => !filteredSet.has(id)));
+    } else {
+      const newSelected = new Set([...selectedIds, ...filteredStudents.map(s => s.id)]);
+      setSelectedIds(Array.from(newSelected));
+    }
+  };
+
+  const handleToggleSelectRow = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} siswa yang dicentang?\nData akan dihapus dari aplikasi dan Supabase Cloud.`)) {
+      if (onDeleteStudentsBulk) {
+        onDeleteStudentsBulk(selectedIds);
+      } else {
+        selectedIds.forEach(id => onDeleteStudent(id));
+      }
+      setSelectedIds([]);
+    }
+  };
 
   const handleSubmitNewStudent = (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,12 +205,52 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         </div>
       </div>
 
+      {/* Bulk Delete Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center justify-between bg-rose-500/15 border border-rose-500/30 p-4 rounded-2xl shadow-xl animate-fadeIn text-rose-200">
+          <div className="flex items-center space-x-3">
+            <span className="flex h-3 w-3 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+            </span>
+            <span className="text-sm font-bold text-white">
+              Terpilih <span className="text-rose-400 font-extrabold underline decoration-rose-500/50">{selectedIds.length}</span> dari {filteredStudents.length} siswa
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+            >
+              Batal Pilih
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/30 transition-all active:scale-95 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 text-white" />
+              <span>Hapus {selectedIds.length} Siswa Terpilih</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Student Table */}
       <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-300">
             <thead className="bg-white/10 text-slate-200 uppercase text-[11px] font-bold tracking-wider border-b border-white/10">
               <tr>
+                <th className="px-4 py-3.5 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={handleToggleSelectAll}
+                    title="Ceklis Semua Siswa yang Tampil"
+                    className="w-4 h-4 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                  />
+                </th>
                 <th className="px-4 py-3.5">NIS / NISN</th>
                 <th className="px-4 py-3.5">Nama Lengkap Siswa</th>
                 <th className="px-4 py-3.5">Kode QR Absensi</th>
@@ -191,17 +264,33 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             <tbody className="divide-y divide-white/5">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400">
                     Tidak ada data siswa ditemukan.
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((std) => (
-                  <tr key={std.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3.5 font-mono text-xs font-semibold text-slate-200">
-                      <div>{std.nis}</div>
-                      <div className="text-[10px] text-slate-400">{std.nisn}</div>
-                    </td>
+                filteredStudents.map((std) => {
+                  const isChecked = selectedIds.includes(std.id);
+                  return (
+                    <tr
+                      key={std.id}
+                      className={`transition-colors ${
+                        isChecked ? 'bg-rose-500/10 border-l-2 border-l-rose-500' : 'hover:bg-white/5'
+                      }`}
+                    >
+                      <td className="px-4 py-3.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelectRow(std.id)}
+                          className="w-4 h-4 rounded border-white/20 bg-slate-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      </td>
+
+                      <td className="px-4 py-3.5 font-mono text-xs font-semibold text-slate-200">
+                        <div>{std.nis}</div>
+                        <div className="text-[10px] text-slate-400">{std.nisn}</div>
+                      </td>
 
                     <td className="px-4 py-3.5 font-bold text-white">
                       <div className="flex items-center space-x-2">
@@ -263,7 +352,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+              })
               )}
             </tbody>
           </table>

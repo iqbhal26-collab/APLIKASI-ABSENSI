@@ -513,6 +513,18 @@ export async function dbDeleteStudent(config: SchoolConfig, studentId: string) {
   }
 }
 
+export async function dbBatchDeleteStudents(config: SchoolConfig, studentIds: string[]) {
+  if (!config.useSupabaseLive || studentIds.length === 0) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    await supabase.from('students').delete().in('id', studentIds);
+  } catch (err) {
+    console.warn('dbBatchDeleteStudents error:', err);
+  }
+}
+
 export async function dbRecordAttendance(config: SchoolConfig, record: AttendanceRecord) {
   if (!config.useSupabaseLive) return;
   const supabase = getSupabaseClient(config);

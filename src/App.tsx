@@ -35,6 +35,7 @@ import {
   dbAddStudent,
   dbBatchAddStudents,
   dbDeleteStudent,
+  dbBatchDeleteStudents,
   dbRecordAttendance,
   dbSubmitPermit,
   dbUpdatePermitStatus,
@@ -688,7 +689,9 @@ export default function App() {
   // Delete student
   const handleDeleteStudent = (id: string) => {
     const targetStudent = students.find(s => s.id === id);
-    setStudents(prev => prev.filter(s => s.id !== id));
+    const updatedStudents = students.filter(s => s.id !== id);
+    setStudents(updatedStudents);
+    localStorage.setItem('sma_students', JSON.stringify(updatedStudents));
 
     if (targetStudent) {
       setClasses(prevClasses => {
@@ -698,12 +701,36 @@ export default function App() {
           }
           return c;
         });
+        localStorage.setItem('sma_classes', JSON.stringify(updated));
         dbUpdateClasses(schoolConfig, updated);
         return updated;
       });
     }
 
     dbDeleteStudent(schoolConfig, id);
+  };
+
+  // Bulk delete students
+  const handleDeleteStudentsBulk = (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    const deleteSet = new Set(ids);
+    const updatedStudents = students.filter(s => !deleteSet.has(s.id));
+    setStudents(updatedStudents);
+    localStorage.setItem('sma_students', JSON.stringify(updatedStudents));
+
+    setClasses(prevClasses => {
+      const updated = prevClasses.map(c => {
+        const count = updatedStudents.filter(
+          s => s.classId === c.id || (s.className && s.className.toLowerCase().trim() === c.name.toLowerCase().trim())
+        ).length;
+        return { ...c, studentCount: count };
+      });
+      localStorage.setItem('sma_classes', JSON.stringify(updated));
+      dbUpdateClasses(schoolConfig, updated);
+      return updated;
+    });
+
+    dbBatchDeleteStudents(schoolConfig, ids);
   };
 
   // Update attendance status manually by Teacher
@@ -855,6 +882,7 @@ export default function App() {
               classes={classes}
               onAddStudent={handleAddStudent}
               onDeleteStudent={handleDeleteStudent}
+              onDeleteStudentsBulk={handleDeleteStudentsBulk}
               onOpenExcelImportModal={() => setIsExcelImportOpen(true)}
               onNavigateTab={(tab) => setActiveTab(tab)}
             />
