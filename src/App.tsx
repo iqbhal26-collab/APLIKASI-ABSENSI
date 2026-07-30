@@ -993,6 +993,7 @@ export default function App() {
           permits={permits}
           teacherClassHandled={activeTeacherClasses.map(c => c.id)}
           currentUser={currentUser}
+          activeTab={activeTab}
           onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onApprovePermit={handleApprovePermit}
           onOpenExportModal={() => setIsExportModalOpen(true)}
