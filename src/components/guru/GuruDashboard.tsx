@@ -2,21 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus, User } from '../../types';
 import {
   UserCheck,
+  FileSpreadsheet,
+  Search,
+  Calendar,
   CheckCircle2,
   Clock,
-  Calendar,
-  FileText,
   Check,
   X,
-  FileSpreadsheet,
   AlertCircle,
-  Paperclip,
-  Filter,
-  Search,
+  ShieldCheck,
   HeartHandshake,
   User as UserIcon,
-  Eye,
-  ShieldCheck
+  Paperclip,
+  Users,
+  FileText
 } from 'lucide-react';
 
 interface GuruDashboardProps {
@@ -39,7 +38,6 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   students,
   records,
   permits,
-  teacherClassHandled,
   currentUser,
   activeTab = 'class_attendance',
   onUpdateAttendanceStatus,
@@ -49,10 +47,12 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   const activeClasses = classes;
 
   const [selectedClassId, setSelectedClassId] = useState<string>(
-    activeClasses[0]?.id || ''
+    activeClasses[0]?.id || 'ALL'
   );
   const [selectedActivityCode, setSelectedActivityCode] = useState<string>('DATANG');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [previewAttachmentUrl, setPreviewAttachmentUrl] = useState<string | null>(null);
 
   // Permit Filter State
@@ -60,40 +60,58 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   const [permitSearchQuery, setPermitSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    if (activeClasses.length > 0 && (!selectedClassId || !activeClasses.some(c => c.id === selectedClassId))) {
+    if (activeClasses.length > 0 && selectedClassId !== 'ALL' && !activeClasses.some(c => c.id === selectedClassId)) {
       setSelectedClassId(activeClasses[0].id);
     }
   }, [activeClasses, selectedClassId]);
 
-  const currentClass = activeClasses.find(c => c.id === selectedClassId) || activeClasses[0];
+  const currentClass = activeClasses.find(c => c.id === selectedClassId) || (selectedClassId === 'ALL' ? null : activeClasses[0]);
 
-  // Filter students belonging strictly to the teacher's binaan class
+  // Filter students belonging strictly to teacher's binaan class or selected class
   const classStudents = students.filter(s => {
-    if (!currentClass) return false;
-    if (s.classId === currentClass.id) return true;
-    if (s.className && currentClass.name) {
-      const cNorm = currentClass.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const sNorm = s.className.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (cNorm && sNorm && cNorm === sNorm) return true;
+    if (selectedClassId !== 'ALL' && currentClass) {
+      if (s.classId === currentClass.id) return true;
+      if (s.className && currentClass.name) {
+        const cNorm = currentClass.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const sNorm = s.className.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (cNorm && sNorm && cNorm === sNorm) return true;
+      }
+      return false;
     }
-    return false;
+    return true; // If 'ALL' (e.g. all binaan classes)
+  });
+
+  // Filter students for search and status filter
+  const filteredStudents = classStudents.filter(std => {
+    const rec = records.find(
+      r => r.studentId === std.id && r.date === selectedDate && r.activityCode === selectedActivityCode
+    );
+    const currentStatus = rec ? rec.status : 'alpa';
+
+    const matchesStatus =
+      statusFilter === 'ALL'
+        ? true
+        : statusFilter === 'alpa'
+        ? currentStatus === 'alpa' || currentStatus === 'belum_absen'
+        : currentStatus === statusFilter;
+
+    const matchesSearch =
+      std.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      std.nis.includes(searchQuery) ||
+      std.nisn.includes(searchQuery) ||
+      (std.className && std.className.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    return matchesStatus && matchesSearch;
   });
 
   const selectedActivity = activities.find(a => a.code === selectedActivityCode) || activities[0];
 
-  // Filter permits belonging strictly to the teacher's binaan class students
+  // Permits belonging to teacher's class students
   const classPermits = permits.filter(p => {
-    if (!currentClass) return false;
-
-    const cNameNorm = currentClass.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const pNameNorm = (p.className || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    const matchesClassName = pNameNorm === cNameNorm;
     const matchesStudent = classStudents.some(s =>
       s.id === p.studentId || (p.studentName && s.name && s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === p.studentName.toLowerCase().replace(/[^a-z0-9]/g, ''))
     );
-
-    return matchesClassName || matchesStudent;
+    return matchesStudent;
   });
 
   const pendingPermits = classPermits.filter(p => p.status === 'pending');
@@ -108,7 +126,8 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
         : p.status === permitStatusFilter;
 
     const q = permitSearchQuery.toLowerCase().trim();
-    const matchesQuery = !q ||
+    const matchesQuery =
+      !q ||
       p.studentName.toLowerCase().includes(q) ||
       (p.parentName && p.parentName.toLowerCase().includes(q)) ||
       p.reason.toLowerCase().includes(q) ||
@@ -117,45 +136,187 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
     return matchesStatus && matchesQuery;
   });
 
-  // Calculate statistics for today
+  // Calculate statistics
   const todayRecords = records.filter(
     r => r.date === selectedDate && r.activityCode === selectedActivityCode && classStudents.some(s => s.id === r.studentId)
   );
   const hadirCount = todayRecords.filter(r => r.status === 'hadir').length;
   const sakitIzinCount = todayRecords.filter(r => r.status === 'sakit' || r.status === 'izin').length;
-  const alpaCount = todayRecords.filter(r => r.status === 'alpa').length;
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white/5 backdrop-blur-2xl text-white p-6 rounded-3xl shadow-2xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Banner - Styled exactly like Guru Agama Page */}
+      <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-slate-950 text-white p-6 rounded-3xl shadow-2xl border border-blue-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold border border-blue-500/30 mb-2">
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>DASBOR GURU / WALI KELAS</span>
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30 mb-2">
+            <UserCheck className="w-4 h-4 text-blue-400" />
+            <span>DASBOR GURU / WALI KELAS - PEMANTAUAN PRESENSI</span>
           </div>
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             Presensi & Izin Siswa Kelas {currentClass?.name || 'Binaan'}
           </h2>
-          <p className="text-xs text-slate-300 mt-1">
-            Wali Kelas: <strong>{currentUser?.name || currentClass?.homeroomTeacherName || 'Wali Kelas'}</strong> | Total: {classStudents.length} Siswa Binaan
+          <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+            Halaman rekapitulasi presensi harian dan pengelolaan pemberitahuan izin dari orang tua untuk siswa kelas binaan. Wali Kelas memiliki hak akses verifikasi presensi dan persetujuan izin.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3 shrink-0">
-          <button
-            onClick={onOpenExportModal}
-            className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-slate-950" />
-            <span>Cetak Laporan Rekap Kelas</span>
-          </button>
+        <button
+          onClick={onOpenExportModal}
+          className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
+        >
+          <FileSpreadsheet className="w-4 h-4 text-slate-950" />
+          <span>Cetak Laporan Kelas (.XLSX / .PDF)</span>
+        </button>
+      </div>
+
+      {/* Stats Summary Cards - Matched with Guru Agama layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hadir ({selectedActivityCode})</span>
+            <div className="p-2 bg-emerald-500/20 rounded-xl text-emerald-400 border border-emerald-500/30">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">
+            {hadirCount} <span className="text-xs font-normal text-slate-400">/ {classStudents.length} Siswa</span>
+          </div>
+          <p className="text-[11px] text-emerald-400 mt-1">Tanggal: {selectedDate}</p>
+        </div>
+
+        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Laporan Sakit & Izin</span>
+            <div className="p-2 bg-sky-500/20 rounded-xl text-sky-400 border border-sky-500/30">
+              <HeartHandshake className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">
+            {sakitIzinCount} <span className="text-xs font-normal text-slate-400">/ {classStudents.length} Siswa</span>
+          </div>
+          <p className="text-[11px] text-sky-400 mt-1">Total Surat: {classPermits.length} Laporan</p>
+        </div>
+
+        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Izin Perlu Persetujuan</span>
+            <div className="p-2 bg-amber-500/20 rounded-xl text-amber-400 border border-amber-500/30">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-2xl font-black text-white">
+            {pendingPermits.length} <span className="text-xs font-normal text-slate-400">Pengajuan</span>
+          </div>
+          <p className="text-[11px] text-amber-300 mt-1">
+            {pendingPermits.length > 0 ? 'Menunggu Konfirmasi' : 'Semua Izin Diproses'}
+          </p>
+        </div>
+
+        <div className="bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hak Akses Aktif</span>
+            <div className="p-2 bg-purple-500/20 rounded-xl text-purple-400 border border-purple-500/30">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="text-base font-bold text-white">Wali Kelas {currentClass?.name || ''}</div>
+          <p className="text-[11px] text-purple-300 mt-1">{currentUser?.name || 'Wali Kelas'}</p>
         </div>
       </div>
 
-      {/* RENDER BASED ON ACTIVE TAB */}
+      {/* Control Filter Toolbar - 5 Columns Grid identical to Guru Agama */}
+      <div className="bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {/* Date Selector */}
+        <div>
+          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1 flex items-center space-x-1">
+            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            <span>Tanggal:</span>
+          </label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-      {/* 1. VIEW PERMITS ONLY (Persetujuan Izin / Sakit) */}
+        {/* Class Filter */}
+        <div>
+          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Filter Kelas Binaan:
+          </label>
+          <select
+            value={selectedClassId}
+            onChange={(e) => setSelectedClassId(e.target.value)}
+            className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {activeClasses.length > 1 && <option value="ALL">Semua Kelas Binaan ({students.length} Siswa)</option>}
+            {activeClasses.map((c) => (
+              <option key={c.id} value={c.id}>
+                Kelas {c.name} ({c.studentCount || students.filter(s => s.classId === c.id || s.className === c.name).length} Siswa)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Sesi Presensi */}
+        <div>
+          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Sesi Presensi:
+          </label>
+          <select
+            value={selectedActivityCode}
+            onChange={(e) => setSelectedActivityCode(e.target.value)}
+            className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {activities.map((a) => (
+              <option key={a.id} value={a.code}>
+                {a.name} ({a.startTime} - {a.endTime})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Status Presensi */}
+        <div>
+          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Status Presensi:
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full bg-slate-900 border border-white/10 text-white rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="ALL">Semua Status</option>
+            <option value="hadir">Hadir</option>
+            <option value="terlambat">Terlambat</option>
+            <option value="sakit">Sakit</option>
+            <option value="izin">Izin</option>
+            <option value="alpa">Alpa / Belum Absen</option>
+          </select>
+        </div>
+
+        {/* Search Input */}
+        <div>
+          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
+            Cari Siswa:
+          </label>
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Nama / NIS..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900 border border-white/10 text-white rounded-xl pl-8 pr-3 py-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* RENDER VIEW ACCORDING TO ACTIVE TAB */}
+
+      {/* 1. PERMITS TAB ONLY (Persetujuan Izin / Sakit) */}
       {activeTab === 'permits' && (
         <div className="space-y-6">
           <div className="bg-white/5 backdrop-blur-md p-6 rounded-3xl border border-white/10 shadow-xl space-y-4">
@@ -166,7 +327,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
                   <span>Laporan Pemberitahuan Izin & Sakit dari Orang Tua</span>
                 </h3>
                 <p className="text-xs text-slate-300 mt-1">
-                  Menampilkan laporan surat izin/sakit resmi dari orang tua khusus untuk siswa <strong>Kelas {currentClass?.name}</strong> ({classStudents.length} siswa).
+                  Menampilkan laporan surat izin/sakit resmi dari orang tua khusus untuk siswa <strong>Kelas {currentClass?.name || 'Binaan'}</strong> ({classStudents.length} siswa).
                 </p>
               </div>
 
@@ -174,7 +335,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
               <div className="flex items-center space-x-1.5 bg-black/40 p-1 rounded-2xl border border-white/10 self-start md:self-auto overflow-x-auto">
                 <button
                   onClick={() => setPermitStatusFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     permitStatusFilter === 'all'
                       ? 'bg-blue-500 text-white shadow-md'
                       : 'text-slate-400 hover:text-white'
@@ -184,7 +345,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
                 </button>
                 <button
                   onClick={() => setPermitStatusFilter('pending')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     permitStatusFilter === 'pending'
                       ? 'bg-amber-500 text-slate-950 shadow-md'
                       : 'text-slate-400 hover:text-amber-300'
@@ -194,7 +355,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
                 </button>
                 <button
                   onClick={() => setPermitStatusFilter('approved')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     permitStatusFilter === 'approved'
                       ? 'bg-emerald-500 text-slate-950 shadow-md'
                       : 'text-slate-400 hover:text-emerald-300'
@@ -204,7 +365,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
                 </button>
                 <button
                   onClick={() => setPermitStatusFilter('rejected')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     permitStatusFilter === 'rejected'
                       ? 'bg-rose-500 text-white shadow-md'
                       : 'text-slate-400 hover:text-rose-300'
@@ -340,10 +501,10 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
             <div>
               <h3 className="font-bold text-white text-lg flex items-center space-x-2">
                 <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
-                <span>Laporan & Rekap Absensi Bulanan Kelas {currentClass?.name}</span>
+                <span>Laporan & Rekap Absensi Bulanan Kelas {currentClass?.name || 'Binaan'}</span>
               </h3>
               <p className="text-xs text-slate-300 mt-1">
-                Rekap absensi siswa kelas binaan <strong>Kelas {currentClass?.name}</strong>. Anda dapat mengunduh format Excel (.xlsx) atau Dokumen PDF.
+                Rekap absensi siswa kelas binaan <strong>Kelas {currentClass?.name || 'Binaan'}</strong>. Anda dapat mengunduh format Excel (.xlsx) atau Dokumen PDF.
               </p>
             </div>
 
@@ -373,67 +534,15 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
         </div>
       )}
 
-      {/* 3. DEFAULT / CLASS ATTENDANCE VIEW */}
+      {/* 3. DEFAULT / MAIN CLASS ATTENDANCE VIEW (Same table structure as Guru Agama) */}
       {(activeTab === 'class_attendance' || activeTab === 'dashboard' || (!['permits', 'reports'].includes(activeTab))) && (
-        <>
-          {/* Control Selector Bar */}
-          <div className="bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Class selector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                Kelas Binaan Wali Kelas:
-              </label>
-              <select
-                value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full border border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-white bg-slate-900 cursor-pointer"
-              >
-                {activeClasses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Kelas {c.name} ({c.studentCount} Siswa)
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Activity selector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                Sesi / Jenis Kegiatan:
-              </label>
-              <select
-                value={selectedActivityCode}
-                onChange={(e) => setSelectedActivityCode(e.target.value)}
-                className="w-full border border-white/10 rounded-xl px-3 py-2 text-sm font-bold text-white bg-slate-900 cursor-pointer"
-              >
-                {activities.map((a) => (
-                  <option key={a.id} value={a.code}>
-                    {a.name} ({a.startTime} - {a.endTime})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Date picker */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                Tanggal Presensi:
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full border border-white/10 rounded-xl px-3 py-2 text-sm font-mono text-white bg-black/40 cursor-pointer"
-              />
-            </div>
-          </div>
-
-          {/* Pending Permits Alert Box */}
+        <div className="space-y-6">
+          {/* Pending Permits Alert Banner */}
           {pendingPermits.length > 0 && (
             <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 text-white space-y-3 backdrop-blur-md">
               <div className="flex items-center space-x-2 font-bold text-sm text-amber-300">
                 <AlertCircle className="w-5 h-5 text-amber-400" />
-                <span>Ada {pendingPermits.length} Pengajuan Surat Izin / Sakit dari Orang Tua Kelas {currentClass?.name} Perlu Persetujuan:</span>
+                <span>Ada {pendingPermits.length} Pengajuan Surat Izin / Sakit dari Orang Tua Kelas {currentClass?.name || 'Binaan'} Perlu Persetujuan:</span>
               </div>
 
               <div className="space-y-2">
@@ -482,157 +591,161 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
             </div>
           )}
 
-          {/* Summary Stats Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-              <div className="text-[11px] font-bold text-slate-400 uppercase">Total Siswa Binaan</div>
-              <div className="text-xl font-bold text-white mt-1">{classStudents.length} Siswa</div>
-            </div>
-            <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-              <div className="text-[11px] font-bold text-emerald-300 uppercase">Hadir ({selectedActivity?.code})</div>
-              <div className="text-xl font-bold text-emerald-300 mt-1">{hadirCount} Siswa</div>
-            </div>
-            <div className="p-4 bg-sky-500/10 rounded-2xl border border-sky-500/20">
-              <div className="text-[11px] font-bold text-sky-300 uppercase">Sakit / Izin</div>
-              <div className="text-xl font-bold text-sky-300 mt-1">{sakitIzinCount} Siswa</div>
-            </div>
-            <div className="p-4 bg-rose-500/10 rounded-2xl border border-rose-500/20">
-              <div className="text-[11px] font-bold text-rose-300 uppercase">Alpa / Belum</div>
-              <div className="text-xl font-bold text-rose-300 mt-1">{classStudents.length - (hadirCount + sakitIzinCount)} Siswa</div>
-            </div>
-          </div>
-
-          {/* Class Attendance Matrix */}
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg overflow-hidden">
-            <div className="p-5 border-b border-white/10 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-white text-base">
-                  Daftar Kehadiran Siswa Kelas Binaan: {currentClass?.name} ({selectedActivity?.name})
+          {/* Main Attendance Table matching Guru Agama style */}
+          <div className="bg-white/5 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="p-5 bg-white/5 border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Users className="w-5 h-5 text-blue-400" />
+                <h3 className="font-bold text-base text-white">
+                  Rekap Presensi Siswa Kelas Binaan — Tanggal {selectedDate}
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Menampilkan {classStudents.length} siswa kelas binaan {currentClass?.name}. Klik tombol status untuk override status presensi manual.
-                </p>
               </div>
+              <span className="text-xs text-slate-400 font-mono">
+                Total Tampil: {filteredStudents.length} Siswa
+              </span>
             </div>
 
             <div className="overflow-x-auto">
-              {classStudents.length === 0 ? (
-                <div className="p-8 text-center text-slate-400 text-xs">
-                  Belum ada data siswa untuk kelas binaan {currentClass?.name}.
-                </div>
-              ) : (
-                <table className="w-full text-left text-sm text-slate-300">
-                  <thead className="bg-white/10 text-slate-200 uppercase text-[11px] font-bold tracking-wider border-b border-white/10">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-black/40 text-slate-300 font-bold uppercase tracking-wider border-b border-white/10">
+                  <tr>
+                    <th className="px-4 py-3.5">NIS / NISN</th>
+                    <th className="px-4 py-3.5">Nama Siswa</th>
+                    <th className="px-4 py-3.5">L/P</th>
+                    <th className="px-4 py-3.5">Kelas</th>
+                    <th className="px-4 py-3.5 text-center">Status Sesi ({selectedActivity?.code})</th>
+                    <th className="px-4 py-3.5 text-center">Izin Orang Tua</th>
+                    <th className="px-4 py-3.5 text-right">Aksi Verifikasi Wali Kelas</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredStudents.length === 0 ? (
                     <tr>
-                      <th className="px-4 py-3.5">NISN / NIS</th>
-                      <th className="px-4 py-3.5">Nama Siswa</th>
-                      <th className="px-4 py-3.5">Gender</th>
-                      <th className="px-4 py-3.5">Jam Absen</th>
-                      <th className="px-4 py-3.5">Status Kehadiran</th>
-                      <th className="px-4 py-3.5 text-right">Ubah Status Manual</th>
+                      <td colSpan={7} className="text-center py-12 text-slate-400">
+                        Tidak ada data siswa ditemukan sesuai filter.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {classStudents.map((std) => {
+                  ) : (
+                    filteredStudents.map((std) => {
                       const rec = records.find(
                         r => r.studentId === std.id && r.date === selectedDate && r.activityCode === selectedActivityCode
                       );
+                      const stdPermit = classPermits.find(p => p.studentId === std.id || p.studentName === std.name);
 
-                      const currentStatus: AttendanceStatus = rec ? rec.status : 'belum_absen';
-                      const isMaleSpecialNotReq = selectedActivityCode === 'JUMAT' && std.gender !== 'L';
+                      const currentStatus: AttendanceStatus = rec ? rec.status : 'alpa';
 
                       return (
                         <tr key={std.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3.5 font-mono text-xs text-slate-300">
-                            <div>{std.nisn}</div>
-                            <div className="text-[10px] text-slate-400">{std.nis}</div>
-                          </td>
-
-                          <td className="px-4 py-3.5 font-bold text-white">
-                            {std.name}
+                          <td className="px-4 py-3.5 font-mono text-slate-300 font-semibold">
+                            <div>{std.nis}</div>
+                            <div className="text-[10px] text-slate-500">{std.nisn}</div>
                           </td>
 
                           <td className="px-4 py-3.5">
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                              std.gender === 'L' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
+                            <div className="font-bold text-white text-sm">{std.name}</div>
+                            <div className="text-[11px] text-blue-400 font-mono">
+                              ID QR: {std.qrCode}
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded ${
+                              std.gender === 'L' ? 'bg-blue-500/20 text-blue-300' : 'bg-pink-500/20 text-pink-300'
                             }`}>
-                              {std.gender === 'L' ? 'Laki-Laki' : 'Perempuan'}
+                              {std.gender}
                             </span>
                           </td>
 
-                          <td className="px-4 py-3.5 font-mono text-xs text-slate-200">
-                            {rec ? rec.time : '-'}
+                          <td className="px-4 py-3.5">
+                            <span className="px-2.5 py-1 rounded-lg bg-white/5 text-slate-200 font-semibold border border-white/10">
+                              {std.className}
+                            </span>
                           </td>
 
-                          <td className="px-4 py-3.5">
-                            {isMaleSpecialNotReq ? (
-                              <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-white/5 text-slate-400 border border-white/10">
-                                N/A (Bukan Laki-Laki)
+                          <td className="px-4 py-3.5 text-center">
+                            {rec && rec.status === 'hadir' ? (
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center space-x-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>Hadir ({rec.time || '07:00'})</span>
+                              </span>
+                            ) : rec && rec.status === 'terlambat' ? (
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                Terlambat ({rec.time})
+                              </span>
+                            ) : rec && (rec.status === 'sakit' || rec.status === 'izin') ? (
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30 uppercase">
+                                {rec.status}
                               </span>
                             ) : (
-                              <span className={`px-2.5 py-1 text-xs font-bold rounded-full border ${
-                                currentStatus === 'hadir'
-                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                                  : currentStatus === 'terlambat'
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                                  : currentStatus === 'sakit' || currentStatus === 'izin'
-                                  ? 'bg-sky-500/20 text-sky-300 border-sky-500/30'
-                                  : currentStatus === 'alpa'
-                                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                                  : 'bg-white/10 text-slate-300 border-white/10'
-                              }`}>
-                                {currentStatus.toUpperCase().replace('_', ' ')}
+                              <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-500/10 text-rose-300 border border-rose-500/30">
+                                Alpa / Belum
                               </span>
                             )}
                           </td>
 
+                          <td className="px-4 py-3.5 text-center">
+                            {stdPermit ? (
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-md uppercase border ${
+                                stdPermit.status === 'approved'
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                  : stdPermit.status === 'pending'
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                                  : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                              }`}>
+                                {stdPermit.type} ({stdPermit.status})
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-slate-500 font-mono">-</span>
+                            )}
+                          </td>
+
                           <td className="px-4 py-3.5 text-right">
-                            <div className="inline-flex rounded-xl shadow-sm border border-white/10 overflow-hidden text-xs bg-white/5">
+                            <div className="inline-flex items-center space-x-1">
                               <button
                                 onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'hadir', 'Verifikasi Wali Kelas')}
-                                className="px-2.5 py-1 hover:bg-emerald-500/20 text-emerald-300 font-bold border-r border-white/10 transition-colors cursor-pointer"
-                                title="Hadir"
+                                className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 text-[11px] font-bold border border-emerald-500/30 transition-all cursor-pointer"
+                                title="Set Hadir"
                               >
-                                Hadir
+                                + Hadir
                               </button>
                               <button
-                                onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'sakit', 'Surat Sakit')}
-                                className="px-2.5 py-1 hover:bg-sky-500/20 text-sky-300 font-bold border-r border-white/10 transition-colors cursor-pointer"
-                                title="Sakit"
+                                onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'sakit', 'Verifikasi Surat Sakit')}
+                                className="px-2 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/40 text-sky-300 text-[11px] font-bold border border-sky-500/30 transition-all cursor-pointer"
+                                title="Set Sakit"
                               >
                                 Sakit
                               </button>
                               <button
-                                onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'izin', 'Izin Resmi')}
-                                className="px-2.5 py-1 hover:bg-amber-500/20 text-amber-300 font-bold border-r border-white/10 transition-colors cursor-pointer"
-                                title="Izin"
+                                onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'izin', 'Verifikasi Surat Izin')}
+                                className="px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 text-[11px] font-bold border border-amber-500/30 transition-all cursor-pointer"
+                                title="Set Izin"
                               >
                                 Izin
                               </button>
                               <button
-                                onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'alpa', 'Tanpa Keterangan')}
-                                className="px-2.5 py-1 hover:bg-rose-500/20 text-rose-300 font-bold transition-colors cursor-pointer"
-                                title="Alpa"
+                                onClick={() => onUpdateAttendanceStatus(std.id, selectedActivityCode, 'alpa', 'Diubah oleh Wali Kelas')}
+                                className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 text-[11px] font-bold border border-rose-500/30 transition-all cursor-pointer"
+                                title="Reset Ke Alpa"
                               >
-                                Alpa
+                                Reset
                               </button>
                             </div>
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Laporan Pemberitahuan Izin dari Orang Tua (Kelas Binaan) Section */}
+          {/* Laporan Pemberitahuan Izin dari Orang Tua Cards */}
           <div className="bg-white/5 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-lg space-y-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center space-x-2 font-bold text-sm text-white">
                 <HeartHandshake className="w-5 h-5 text-sky-400" />
-                <span>Laporan Pemberitahuan Izin / Sakit dari Orang Tua (Kelas {currentClass?.name})</span>
+                <span>Laporan Pemberitahuan Izin / Sakit dari Orang Tua (Kelas {currentClass?.name || 'Binaan'})</span>
               </div>
               <span className="text-xs font-mono text-slate-400">
                 Total: {classPermits.length} Laporan
@@ -681,7 +794,7 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {/* Modal Preview Attachment Image / Document */}
