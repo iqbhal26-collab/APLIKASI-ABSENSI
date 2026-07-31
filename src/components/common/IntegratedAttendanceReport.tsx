@@ -46,8 +46,10 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
   onOpenExportModal,
   onUpdateAttendanceStatus,
 }) => {
+  const [timeframe, setTimeframe] = useState<'daily' | 'monthly'>('daily');
   const [selectedClassId, setSelectedClassId] = useState<string>(selectedClassIdProp || 'ALL');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // 'YYYY-MM'
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'PIKET' | 'AGAMA' | 'WALI_KELAS'>('ALL');
   const [selectedPermitAttachment, setSelectedPermitAttachment] = useState<string | null>(null);
@@ -76,14 +78,21 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
     return matchesClass && matchesSearch;
   });
 
-  // Calculate day stats
-  const dateRecords = records.filter(r => r.date === selectedDate);
-  const totalDatang = dateRecords.filter(r => r.activityCode === 'DATANG' && (r.status === 'hadir' || r.status === 'terlambat')).length;
-  const totalTerlambatPagi = dateRecords.filter(r => r.activityCode === 'DATANG' && r.status === 'terlambat').length;
-  const totalDzuhur = dateRecords.filter(r => r.activityCode === 'DZUHUR' && r.status === 'hadir').length;
-  const totalJumat = dateRecords.filter(r => r.activityCode === 'JUMAT' && r.status === 'hadir').length;
-  const totalPulang = dateRecords.filter(r => r.activityCode === 'PULANG' && r.status === 'hadir').length;
-  const activePermitsCount = permits.filter(p => p.date === selectedDate && p.status === 'approved').length;
+  // Calculate stats based on timeframe
+  const periodRecords = timeframe === 'daily'
+    ? records.filter(r => r.date === selectedDate)
+    : records.filter(r => r.date && r.date.startsWith(selectedMonth));
+
+  const periodPermits = timeframe === 'daily'
+    ? permits.filter(p => p.date === selectedDate && p.status === 'approved')
+    : permits.filter(p => p.date && p.date.startsWith(selectedMonth) && p.status === 'approved');
+
+  const totalDatang = periodRecords.filter(r => r.activityCode === 'DATANG' && (r.status === 'hadir' || r.status === 'terlambat')).length;
+  const totalTerlambatPagi = periodRecords.filter(r => r.activityCode === 'DATANG' && r.status === 'terlambat').length;
+  const totalDzuhur = periodRecords.filter(r => r.activityCode === 'DZUHUR' && r.status === 'hadir').length;
+  const totalJumat = periodRecords.filter(r => r.activityCode === 'JUMAT' && r.status === 'hadir').length;
+  const totalPulang = periodRecords.filter(r => r.activityCode === 'PULANG' && r.status === 'hadir').length;
+  const activePermitsCount = periodPermits.length;
 
   return (
     <div className="space-y-6">
@@ -166,19 +175,55 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
         </div>
       </div>
 
-      {/* Control Bar: Filters & Date */}
+      {/* Control Bar: Timeframe, Filters & Date */}
       <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Date Picker */}
-          <div className="flex items-center space-x-2 bg-slate-950 px-3 py-2 rounded-xl border border-white/10 text-xs">
-            <Calendar className="w-4 h-4 text-emerald-400" />
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-white font-mono focus:outline-none cursor-pointer"
-            />
+          {/* Timeframe Selector (Harian / Bulanan) */}
+          <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10 text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => setTimeframe('daily')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer ${
+                timeframe === 'daily' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Laporan Harian</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeframe('monthly')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer ${
+                timeframe === 'monthly' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Rekap Bulanan</span>
+            </button>
           </div>
+
+          {/* Date Picker or Month Picker */}
+          {timeframe === 'daily' ? (
+            <div className="flex items-center space-x-2 bg-slate-950 px-3 py-2 rounded-xl border border-white/10 text-xs">
+              <Calendar className="w-4 h-4 text-emerald-400" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-white font-mono focus:outline-none cursor-pointer"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2 bg-slate-950 px-3 py-2 rounded-xl border border-white/10 text-xs">
+              <Calendar className="w-4 h-4 text-emerald-400" />
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent text-white font-mono focus:outline-none cursor-pointer"
+              />
+            </div>
+          )}
 
           {/* Class Filter */}
           <select
@@ -242,183 +287,258 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
       <div className="bg-slate-900/90 border border-white/10 rounded-3xl p-5 shadow-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="text-[11px] uppercase bg-slate-950 text-slate-400 border-b border-white/10">
-              <tr>
-                <th className="px-4 py-3.5 font-extrabold">No</th>
-                <th className="px-4 py-3.5 font-extrabold">Nama Siswa / NISN</th>
-                <th className="px-4 py-3.5 font-extrabold">Kelas</th>
-                {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
+            <thead key={timeframe} className="text-[11px] uppercase bg-slate-950 text-slate-400 border-b border-white/10">
+              {timeframe === 'daily' ? (
+                <tr>
+                  <th className="px-4 py-3.5 font-extrabold">No</th>
+                  <th className="px-4 py-3.5 font-extrabold">Nama Siswa / NISN</th>
+                  <th className="px-4 py-3.5 font-extrabold">Kelas</th>
+                  {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
+                    <th className="px-4 py-3.5 font-extrabold text-center bg-emerald-950/40 border-x border-white/5">
+                      1. Jam Datang (Guru Piket)
+                    </th>
+                  )}
+                  {(roleFilter === 'ALL' || roleFilter === 'AGAMA') && (
+                    <>
+                      <th className="px-4 py-3.5 font-extrabold text-center bg-blue-950/40 border-r border-white/5">
+                        2. Sholat Dzuhur (Guru Agama)
+                      </th>
+                      <th className="px-4 py-3.5 font-extrabold text-center bg-teal-950/40 border-r border-white/5">
+                        3. Sholat Jumat (Guru Agama)
+                      </th>
+                    </>
+                  )}
+                  {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
+                    <th className="px-4 py-3.5 font-extrabold text-center bg-indigo-950/40 border-r border-white/5">
+                      4. Jam Pulang (Guru Piket)
+                    </th>
+                  )}
+                  {(roleFilter === 'ALL' || roleFilter === 'WALI_KELAS') && (
+                    <th className="px-4 py-3.5 font-extrabold text-center bg-amber-950/40">
+                      5. Status Wali Kelas / Surat Izin
+                    </th>
+                  )}
+                </tr>
+              ) : (
+                <tr>
+                  <th className="px-4 py-3.5 font-extrabold">No</th>
+                  <th className="px-4 py-3.5 font-extrabold">Nama Siswa / NISN</th>
+                  <th className="px-4 py-3.5 font-extrabold">Kelas</th>
                   <th className="px-4 py-3.5 font-extrabold text-center bg-emerald-950/40 border-x border-white/5">
-                    1. Jam Datang (Guru Piket)
+                    Total Datang (Terlambat)
                   </th>
-                )}
-                {(roleFilter === 'ALL' || roleFilter === 'AGAMA') && (
-                  <>
-                    <th className="px-4 py-3.5 font-extrabold text-center bg-blue-950/40 border-r border-white/5">
-                      2. Sholat Dzuhur (Guru Agama)
-                    </th>
-                    <th className="px-4 py-3.5 font-extrabold text-center bg-teal-950/40 border-r border-white/5">
-                      3. Sholat Jumat (Guru Agama)
-                    </th>
-                  </>
-                )}
-                {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-blue-950/40 border-r border-white/5">
+                    Total Sholat Dzuhur
+                  </th>
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-teal-950/40 border-r border-white/5">
+                    Total Sholat Jumat
+                  </th>
                   <th className="px-4 py-3.5 font-extrabold text-center bg-indigo-950/40 border-r border-white/5">
-                    4. Jam Pulang (Guru Piket)
+                    Total Pulang
                   </th>
-                )}
-                {(roleFilter === 'ALL' || roleFilter === 'WALI_KELAS') && (
                   <th className="px-4 py-3.5 font-extrabold text-center bg-amber-950/40">
-                    5. Status Wali Kelas / Surat Izin
+                    Surat Izin / Sakit
                   </th>
-                )}
-              </tr>
+                  <th className="px-4 py-3.5 font-extrabold text-center">
+                    Rekap Bulanan
+                  </th>
+                </tr>
+              )}
             </thead>
-            <tbody className="divide-y divide-white/5 font-medium">
+            <tbody key={`${timeframe}-${roleFilter}-${selectedDate}-${selectedMonth}`} className="divide-y divide-white/5 font-medium">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-500">
-                    Tidak ada data siswa ditemukan untuk tanggal/kelas yang dipilih.
+                  <td colSpan={10} className="text-center py-12 text-slate-500">
+                    Tidak ada data siswa ditemukan untuk kriteria yang dipilih.
                   </td>
                 </tr>
               ) : (
                 filteredStudents.map((std, idx) => {
-                  const stdRecords = records.filter(r => r.studentId === std.id && r.date === selectedDate);
-                  const datangRec = stdRecords.find(r => r.activityCode === 'DATANG');
-                  const dzuhurRec = stdRecords.find(r => r.activityCode === 'DZUHUR');
-                  const jumatRec = stdRecords.find(r => r.activityCode === 'JUMAT');
-                  const pulangRec = stdRecords.find(r => r.activityCode === 'PULANG');
-                  const approvedPermit = permits.find(p => p.studentId === std.id && p.date === selectedDate && p.status === 'approved');
+                  if (timeframe === 'daily') {
+                    const stdRecords = records.filter(r => r.studentId === std.id && r.date === selectedDate);
+                    const datangRec = stdRecords.find(r => r.activityCode === 'DATANG');
+                    const dzuhurRec = stdRecords.find(r => r.activityCode === 'DZUHUR');
+                    const jumatRec = stdRecords.find(r => r.activityCode === 'JUMAT');
+                    const pulangRec = stdRecords.find(r => r.activityCode === 'PULANG');
+                    const approvedPermit = permits.find(p => p.studentId === std.id && p.date === selectedDate && p.status === 'approved');
 
-                  return (
-                    <tr key={std.id} className="hover:bg-white/5 transition-all">
-                      <td className="px-4 py-3 font-mono text-slate-500">{idx + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-white text-sm">{std.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">NISN: {std.nisn} ({std.gender === 'L' ? 'Laki-laki' : 'Perempuan'})</div>
-                      </td>
-                      <td className="px-4 py-3 font-bold">
-                        <span className="px-2 py-0.5 bg-slate-800 text-slate-200 rounded text-[11px]">
-                          {std.className}
-                        </span>
-                      </td>
+                    return (
+                      <tr key={`daily-${std.id}`} className="hover:bg-white/5 transition-all">
+                        <td className="px-4 py-3 font-mono text-slate-500">{idx + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-white text-sm">{std.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">NISN: {std.nisn} ({std.gender === 'L' ? 'Laki-laki' : 'Perempuan'})</div>
+                        </td>
+                        <td className="px-4 py-3 font-bold">
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-200 rounded text-[11px]">
+                            {std.className}
+                          </span>
+                        </td>
 
-                      {/* 1. Datang Pagi (Guru Piket) */}
-                      {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
-                        <td className="px-4 py-3 text-center bg-emerald-950/20 border-x border-white/5">
-                          {approvedPermit ? (
-                            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[10px] font-bold uppercase">
-                              {approvedPermit.type}
-                            </span>
-                          ) : datangRec ? (
-                            <div className="space-y-0.5">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                                datangRec.status === 'terlambat' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                              }`}>
-                                {datangRec.status === 'terlambat' ? 'Terlambat' : 'Hadir'}
+                        {/* 1. Datang Pagi (Guru Piket) */}
+                        {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
+                          <td className="px-4 py-3 text-center bg-emerald-950/20 border-x border-white/5">
+                            {approvedPermit ? (
+                              <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded text-[10px] font-bold uppercase">
+                                {approvedPermit.type}
                               </span>
-                              <div className="text-[10px] font-mono text-emerald-400">{datangRec.time}</div>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                              Belum Scan
-                            </span>
+                            ) : datangRec ? (
+                              <div className="space-y-0.5">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                                  datangRec.status === 'terlambat' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                }`}>
+                                  {datangRec.status === 'terlambat' ? 'Terlambat' : 'Hadir'}
+                                </span>
+                                <div className="text-[10px] font-mono text-emerald-400">{datangRec.time}</div>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                                Belum Scan
+                              </span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* 2. Sholat Dzuhur (Guru Agama) */}
+                        {(roleFilter === 'ALL' || roleFilter === 'AGAMA') && (
+                          <td className="px-4 py-3 text-center bg-blue-950/20 border-r border-white/5">
+                            {approvedPermit ? (
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase">Izin / Sakit</span>
+                            ) : dzuhurRec ? (
+                              <div className="space-y-0.5">
+                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/40 rounded text-[10px] font-extrabold uppercase">
+                                  Hadir
+                                </span>
+                                <div className="text-[10px] font-mono text-blue-400">{dzuhurRec.time}</div>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                                Belum Scan
+                              </span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* 3. Sholat Jumat (Guru Agama) */}
+                        {(roleFilter === 'ALL' || roleFilter === 'AGAMA') && (
+                          <td className="px-4 py-3 text-center bg-teal-950/20 border-r border-white/5">
+                            {std.gender === 'P' ? (
+                              <span className="text-[10px] text-slate-500 italic">Non-Wajib (P)</span>
+                            ) : approvedPermit ? (
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase">Izin / Sakit</span>
+                            ) : jumatRec ? (
+                              <div className="space-y-0.5">
+                                <span className="px-2 py-0.5 bg-teal-500/20 text-teal-300 border border-teal-500/40 rounded text-[10px] font-extrabold uppercase">
+                                  Hadir
+                                </span>
+                                <div className="text-[10px] font-mono text-teal-400">{jumatRec.time}</div>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                                Belum Scan
+                              </span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* 4. Jam Pulang (Guru Piket) */}
+                        {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
+                          <td className="px-4 py-3 text-center bg-indigo-950/20 border-r border-white/5">
+                            {approvedPermit ? (
+                              <span className="text-[10px] text-slate-400 font-semibold uppercase">Izin / Sakit</span>
+                            ) : pulangRec ? (
+                              <div className="space-y-0.5">
+                                <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 rounded text-[10px] font-extrabold uppercase">
+                                  Pulang
+                                </span>
+                                <div className="text-[10px] font-mono text-indigo-400">{pulangRec.time}</div>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 font-semibold">Belum Pulang</span>
+                            )}
+                          </td>
+                        )}
+
+                        {/* 5. Status Wali Kelas / Surat Izin */}
+                        {(roleFilter === 'ALL' || roleFilter === 'WALI_KELAS') && (
+                          <td className="px-4 py-3 text-center bg-amber-950/20">
+                            {approvedPermit ? (
+                              <div className="space-y-1">
+                                <span className="px-2.5 py-1 bg-amber-500/30 text-amber-200 border border-amber-500/50 rounded-lg text-[10px] font-black uppercase inline-flex items-center space-x-1">
+                                  <FileText className="w-3 h-3 text-amber-400" />
+                                  <span>{approvedPermit.type}: {approvedPermit.reason}</span>
+                                </span>
+                                {approvedPermit.attachmentUrl && (
+                                  <button
+                                    onClick={() => setSelectedPermitAttachment(approvedPermit.attachmentUrl || null)}
+                                    className="text-[10px] text-sky-400 hover:underline flex items-center justify-center space-x-1 mx-auto"
+                                  >
+                                    <Paperclip className="w-3 h-3" />
+                                    <span>Lihat Surat Dokter / Izin</span>
+                                  </button>
+                                )}
+                              </div>
+                            ) : datangRec || dzuhurRec || jumatRec || pulangRec ? (
+                              <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-[10px] font-bold">
+                                Verifikasi Hadir
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold uppercase">
+                                Tanpa Keterangan / Alpa
+                              </span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  } else {
+                    // MONTHLY TIMEFRAME AGGREGATION
+                    const mRecords = records.filter(r => r.studentId === std.id && r.date && r.date.startsWith(selectedMonth));
+                    const mDatangCount = mRecords.filter(r => r.activityCode === 'DATANG' && (r.status === 'hadir' || r.status === 'terlambat')).length;
+                    const mTerlambatCount = mRecords.filter(r => r.activityCode === 'DATANG' && r.status === 'terlambat').length;
+                    const mDzuhurCount = mRecords.filter(r => r.activityCode === 'DZUHUR' && r.status === 'hadir').length;
+                    const mJumatCount = mRecords.filter(r => r.activityCode === 'JUMAT' && r.status === 'hadir').length;
+                    const mPulangCount = mRecords.filter(r => r.activityCode === 'PULANG' && r.status === 'hadir').length;
+                    const mPermitsCount = permits.filter(p => p.studentId === std.id && p.date && p.date.startsWith(selectedMonth) && p.status === 'approved').length;
+
+                    return (
+                      <tr key={`monthly-${std.id}`} className="hover:bg-white/5 transition-all">
+                        <td className="px-4 py-3.5 font-mono text-slate-500">{idx + 1}</td>
+                        <td className="px-4 py-3.5">
+                          <div className="font-bold text-white text-sm">{std.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">NISN: {std.nisn}</div>
+                        </td>
+                        <td className="px-4 py-3.5 font-bold">
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-200 rounded text-[11px]">
+                            {std.className}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-center bg-emerald-950/20 border-x border-white/5 font-mono">
+                          <span className="font-extrabold text-emerald-400">{mDatangCount}x</span>
+                          {mTerlambatCount > 0 && (
+                            <div className="text-[10px] text-amber-300 font-semibold">({mTerlambatCount}x terlambat)</div>
                           )}
                         </td>
-                      )}
-
-                      {/* 2. Sholat Dzuhur (Guru Agama) */}
-                      {(roleFilter === 'ALL' || roleFilter === 'AGAMA') && (
-                        <td className="px-4 py-3 text-center bg-blue-950/20 border-r border-white/5">
-                          {approvedPermit ? (
-                            <span className="text-[10px] text-slate-400 font-semibold uppercase">Izin / Sakit</span>
-                          ) : dzuhurRec ? (
-                            <div className="space-y-0.5">
-                              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/40 rounded text-[10px] font-extrabold uppercase">
-                                Hadir
-                              </span>
-                              <div className="text-[10px] font-mono text-blue-400">{dzuhurRec.time}</div>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                              Belum Scan
-                            </span>
-                          )}
+                        <td className="px-4 py-3.5 text-center bg-blue-950/20 border-r border-white/5 font-mono font-extrabold text-blue-400">
+                          {mDzuhurCount}x
                         </td>
-                      )}
-
-                      {/* 3. Sholat Jumat (Guru Agama) */}
-                      {(roleFilter === 'ALL' || roleFilter === 'AGAMA') && (
-                        <td className="px-4 py-3 text-center bg-teal-950/20 border-r border-white/5">
-                          {std.gender === 'P' ? (
-                            <span className="text-[10px] text-slate-500 italic">Non-Wajib (P)</span>
-                          ) : approvedPermit ? (
-                            <span className="text-[10px] text-slate-400 font-semibold uppercase">Izin / Sakit</span>
-                          ) : jumatRec ? (
-                            <div className="space-y-0.5">
-                              <span className="px-2 py-0.5 bg-teal-500/20 text-teal-300 border border-teal-500/40 rounded text-[10px] font-extrabold uppercase">
-                                Hadir
-                              </span>
-                              <div className="text-[10px] font-mono text-teal-400">{jumatRec.time}</div>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-rose-400 font-bold bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                              Belum Scan
-                            </span>
-                          )}
+                        <td className="px-4 py-3.5 text-center bg-teal-950/20 border-r border-white/5 font-mono font-extrabold text-teal-400">
+                          {std.gender === 'P' ? '-' : `${mJumatCount}x`}
                         </td>
-                      )}
-
-                      {/* 4. Jam Pulang (Guru Piket) */}
-                      {(roleFilter === 'ALL' || roleFilter === 'PIKET') && (
-                        <td className="px-4 py-3 text-center bg-indigo-950/20 border-r border-white/5">
-                          {approvedPermit ? (
-                            <span className="text-[10px] text-slate-400 font-semibold uppercase">Izin / Sakit</span>
-                          ) : pulangRec ? (
-                            <div className="space-y-0.5">
-                              <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 rounded text-[10px] font-extrabold uppercase">
-                                Pulang
-                              </span>
-                              <div className="text-[10px] font-mono text-indigo-400">{pulangRec.time}</div>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-500 font-semibold">Belum Pulang</span>
-                          )}
+                        <td className="px-4 py-3.5 text-center bg-indigo-950/20 border-r border-white/5 font-mono font-extrabold text-indigo-400">
+                          {mPulangCount}x
                         </td>
-                      )}
-
-                      {/* 5. Status Wali Kelas / Surat Izin */}
-                      {(roleFilter === 'ALL' || roleFilter === 'WALI_KELAS') && (
-                        <td className="px-4 py-3 text-center bg-amber-950/20">
-                          {approvedPermit ? (
-                            <div className="space-y-1">
-                              <span className="px-2.5 py-1 bg-amber-500/30 text-amber-200 border border-amber-500/50 rounded-lg text-[10px] font-black uppercase inline-flex items-center space-x-1">
-                                <FileText className="w-3 h-3 text-amber-400" />
-                                <span>{approvedPermit.type}: {approvedPermit.reason}</span>
-                              </span>
-                              {approvedPermit.attachmentUrl && (
-                                <button
-                                  onClick={() => setSelectedPermitAttachment(approvedPermit.attachmentUrl || null)}
-                                  className="text-[10px] text-sky-400 hover:underline flex items-center justify-center space-x-1 mx-auto"
-                                >
-                                  <Paperclip className="w-3 h-3" />
-                                  <span>Lihat Surat Dokter / Izin</span>
-                                </button>
-                              )}
-                            </div>
-                          ) : datangRec || dzuhurRec || jumatRec || pulangRec ? (
-                            <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-[10px] font-bold">
-                              Verifikasi Hadir
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold uppercase">
-                              Tanpa Keterangan / Alpa
-                            </span>
-                          )}
+                        <td className="px-4 py-3.5 text-center bg-amber-950/20 font-mono font-extrabold text-amber-300">
+                          {mPermitsCount} Hari
                         </td>
-                      )}
-                    </tr>
-                  );
+                        <td className="px-4 py-3.5 text-center">
+                          <span className="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 rounded-lg text-[10px] font-bold uppercase">
+                            Aktif ({mDatangCount + mPermitsCount} hari)
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  }
                 })
               )}
             </tbody>
