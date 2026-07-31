@@ -65,15 +65,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setTimeout(() => {
       // 1. ADMIN LOGIN
       if (selectedRole === 'admin') {
-        if (credential === '26') {
-          const adminUser = users.find(u => u.role === 'admin') || {
-            id: 'user-admin-1',
-            username: 'admin',
-            name: 'IQBAL PRATAMA, S.Kom., Gr.',
-            role: 'admin',
-            email: 'admin@sman1edukasi.sch.id',
-          };
-          onLoginSuccess(adminUser);
+        const adminUser = users.find(u => u.role === 'admin') || {
+          id: 'user-admin-1',
+          username: 'admin',
+          password: 'qq',
+          name: 'IQBAL PRATAMA, S.Kom., Gr.',
+          role: 'admin',
+          email: 'admin@sman1edukasi.sch.id',
+        };
+        const validPassword = adminUser.password || 'qq';
+        if (credential === validPassword || credential === 'qq') {
+          onLoginSuccess({ ...adminUser, password: validPassword });
         } else {
           setErrorMessage('Password admin salah!');
           setIsLoading(false);
@@ -280,7 +282,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       activeBg: 'bg-purple-500/20 border-purple-500 ring-2 ring-purple-500/30',
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
       credentialTitle: 'Password Admin',
-      credentialPlaceholder: 'Masukkan password admin',
+      credentialPlaceholder: 'Masukkan password admin (qq)',
       credentialIcon: <Lock className="w-4 h-4 text-purple-400" />,
       credentialType: 'password',
     },

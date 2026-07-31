@@ -184,6 +184,7 @@ export const initialUsers: User[] = [
   {
     id: 'user-admin-1',
     username: 'admin',
+    password: 'qq',
     name: 'IQBAL PRATAMA, S.Kom., Gr.',
     role: 'admin',
     email: 'admin@sman1edukasi.sch.id',
