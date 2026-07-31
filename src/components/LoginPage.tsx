@@ -12,7 +12,8 @@ import {
   AlertCircle,
   KeyRound,
   CheckCircle2,
-  Moon
+  Moon,
+  QrCode
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -159,6 +160,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({
         return;
       }
 
+      // GURU PIKET LOGIN
+      if (selectedRole === 'guru_piket') {
+        const normCred = credential.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const piketUser = users.find(u => {
+          if (u.role !== 'guru_piket') return false;
+          const uUserNorm = u.username.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const uNameNorm = u.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (uUserNorm.includes(normCred) || uNameNorm.includes(normCred)) return true;
+          if (u.phone && u.phone.includes(credential)) return true;
+          return false;
+        }) || {
+          id: 'user-guru-piket-1',
+          username: 'piket_guru',
+          name: credential ? `Guru Piket (NIP: ${credential})` : 'Guru Piket Sekolah',
+          role: 'guru_piket' as const,
+          email: 'piket@sman1edukasi.sch.id',
+          phone: '081233445566',
+        };
+        onLoginSuccess(piketUser);
+        return;
+      }
+
       // GURU AGAMA LOGIN
       if (selectedRole === 'guru_agama') {
         const agamaUser = users.find(u => u.role === 'guru_agama') || {
@@ -272,6 +295,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({
       credentialTitle: 'NIP Wali Kelas',
       credentialPlaceholder: 'Masukkan NIP Guru Wali Kelas',
       credentialIcon: <CreditCard className="w-4 h-4 text-sky-400" />,
+      credentialType: 'text',
+    },
+    {
+      id: 'guru_piket',
+      label: 'Guru Piket',
+      sublabel: 'Scan Datang & Pulang',
+      icon: <QrCode className="w-5 h-5 text-indigo-400" />,
+      color: 'border-indigo-500/30 hover:border-indigo-500/60',
+      activeBg: 'bg-indigo-500/20 border-indigo-500 ring-2 ring-indigo-500/30',
+      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+      credentialTitle: 'NIP / User Guru Piket',
+      credentialPlaceholder: 'Masukkan NIP Guru Piket',
+      credentialIcon: <CreditCard className="w-4 h-4 text-indigo-400" />,
       credentialType: 'text',
     },
     {
@@ -418,12 +454,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   autoFocus
                 />
               </div>
-              {selectedRole === 'guru' && (
-                <p className="text-[11px] text-sky-300/90 mt-1.5 flex items-center gap-1">
-                  <CreditCard className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>Password/akses Wali Kelas menggunakan <strong>NIP masing-masing</strong> (atau nama kelas, contoh: <strong>XI.B2</strong> / <strong>X IPA 1</strong>).</span>
-                </p>
-              )}
             </div>
 
             {/* Error Message */}

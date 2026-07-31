@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'guru' | 'guru_agama' | 'orang_tua' | 'siswa';
+export type UserRole = 'admin' | 'guru' | 'guru_piket' | 'guru_agama' | 'orang_tua' | 'siswa';
 
 export type Gender = 'L' | 'P'; // Laki-laki | Perempuan
 

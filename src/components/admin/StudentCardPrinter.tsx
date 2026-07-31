@@ -97,7 +97,7 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                     ${logoHtml}
                     <div>
                       <div style="font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: -0.2px;">${schoolConfig.schoolName}</div>
-                      <div style="font-size: 7.5px; color: ${cardTheme === 'emerald' ? '#34d399' : '#059669'}; font-weight: 700; letter-spacing: 0.3px;">KARTU PELAJAR & PRESENSI DIGITAL</div>
+                      <div style="font-size: 7.5px; color: ${cardTheme === 'emerald' ? '#34d399' : '#059669'}; font-weight: 700; letter-spacing: 0.3px;">PRESENSI DIGITAL</div>
                     </div>
                   </div>
                   <div style="font-size: 8.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px; background: ${cardTheme === 'emerald' ? 'rgba(16, 185, 129, 0.2)' : '#e0f2fe'}; color: ${cardTheme === 'emerald' ? '#6ee7b7' : '#0369a1'}; border: 1px solid ${cardTheme === 'emerald' ? '#059669' : '#bae6fd'};">
@@ -434,7 +434,7 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                               <div className={`text-[9px] font-bold tracking-wider uppercase ${
                                 cardTheme === 'emerald' ? 'text-emerald-400' : 'text-emerald-600'
                               }`}>
-                                KARTU PELAJAR & PRESENSI DIGITAL
+                                PRESENSI DIGITAL
                               </div>
                             </div>
                           </div>

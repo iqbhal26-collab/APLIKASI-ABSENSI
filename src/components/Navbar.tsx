@@ -47,6 +47,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           bg: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
           icon: <UserCheck className="w-3.5 h-3.5 mr-1 text-blue-300" />
         };
+      case 'guru_piket':
+        return {
+          label: 'Guru Piket',
+          bg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+          icon: <QrCode className="w-3.5 h-3.5 mr-1 text-indigo-300" />
+        };
       case 'guru_agama':
         return {
           label: 'Guru Agama',

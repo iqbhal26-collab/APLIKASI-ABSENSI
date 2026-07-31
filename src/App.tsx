@@ -68,6 +68,7 @@ import { ActivityManagement } from './components/admin/ActivityManagement';
 import { SystemConfig } from './components/admin/SystemConfig';
 
 import { GuruDashboard } from './components/guru/GuruDashboard';
+import { GuruPiketDashboard } from './components/piket/GuruPiketDashboard';
 import { ReligionTeacherDashboard } from './components/guru_agama/ReligionTeacherDashboard';
 import { ParentDashboard } from './components/orangtua/ParentDashboard';
 import { StudentDashboard } from './components/siswa/StudentDashboard';
@@ -997,6 +998,17 @@ export default function App() {
           onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onApprovePermit={handleApprovePermit}
           onOpenExportModal={() => setIsExportModalOpen(true)}
+        />
+      );
+    } else if (currentUser.role === 'guru_piket') {
+      return (
+        <GuruPiketDashboard
+          currentUser={currentUser}
+          students={students}
+          activities={activities}
+          records={attendanceRecords}
+          schoolConfig={schoolConfig}
+          onRecordAttendance={handleRecordAttendance}
         />
       );
     } else if (currentUser.role === 'guru_agama') {
