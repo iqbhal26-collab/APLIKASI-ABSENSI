@@ -4,9 +4,11 @@ import autoTable from 'jspdf-autotable';
 import { AttendanceRecord, Student, SchoolConfig, ActivityType } from '../types';
 
 interface ExportFilter {
-  month: string; // e.g. "2026-07"
+  date?: string; // e.g. "2026-07-30" (for daily export)
+  month?: string; // e.g. "2026-07" (for monthly export)
   className?: string;
   activityCode?: string;
+  reportType?: 'daily' | 'monthly';
 }
 
 // Format date to Indonesian string
@@ -16,6 +18,21 @@ export const formatIndonesianDate = (dateStr: string) => {
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${day} ${months[monthIdx]} ${year}`;
+    }
+  } else if (parts.length === 2) {
+    const year = parts[0];
+    const monthIdx = parseInt(parts[1], 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${months[monthIdx]} ${year}`;
+    }
+  }
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
@@ -28,19 +45,30 @@ export const exportAttendanceToExcel = (
   config: SchoolConfig,
   filter: ExportFilter
 ) => {
+  const isDaily = filter.reportType === 'daily' || Boolean(filter.date);
+
   const filteredRecords = records.filter(r => {
-    const matchMonth = filter.month ? r.date.startsWith(filter.month) : true;
+    let matchTime = true;
+    if (isDaily && filter.date) {
+      matchTime = r.date === filter.date;
+    } else if (filter.month) {
+      matchTime = r.date.startsWith(filter.month);
+    }
+
     const matchClass = filter.className && filter.className !== 'ALL'
       ? (r.className ? r.className.toLowerCase().replace(/[^a-z0-9]/g, '') === filter.className.toLowerCase().replace(/[^a-z0-9]/g, '') : true)
       : true;
     const matchAct = filter.activityCode && filter.activityCode !== 'ALL' ? r.activityCode === filter.activityCode : true;
-    return matchMonth && matchClass && matchAct;
+    return matchTime && matchClass && matchAct;
   });
 
   // Prepare sheet data
-  const monthName = filter.month ? formatIndonesianDate(`${filter.month}-01`).split(' ').slice(1).join(' ') : 'Semua Periode';
-  const titleRow = [`REKAPITULASI ABSENSI SISWA - ${config.schoolName.toUpperCase()}`];
-  const subTitleRow = [`PERIODE: ${monthName} | KELAS: ${filter.className || 'Semua Kelas'}`];
+  const periodText = isDaily && filter.date
+    ? `HARIAN (${formatIndonesianDate(filter.date)})`
+    : `BULANAN (${filter.month ? formatIndonesianDate(filter.month) : 'Semua Periode'})`;
+
+  const titleRow = [`REKAPITULASI ABSENSI SISWA ${isDaily ? 'HARIAN' : 'BULANAN'} - ${config.schoolName.toUpperCase()}`];
+  const subTitleRow = [`PERIODE: ${periodText} | KELAS: ${filter.className || 'Semua Kelas'}`];
   const emptyRow = [''];
 
   const headers = [
@@ -197,13 +225,21 @@ export const exportAttendanceToPDF = (
   config: SchoolConfig,
   filter: ExportFilter
 ) => {
+  const isDaily = filter.reportType === 'daily' || Boolean(filter.date);
+
   const filteredRecords = records.filter(r => {
-    const matchMonth = filter.month ? r.date.startsWith(filter.month) : true;
+    let matchTime = true;
+    if (isDaily && filter.date) {
+      matchTime = r.date === filter.date;
+    } else if (filter.month) {
+      matchTime = r.date.startsWith(filter.month);
+    }
+
     const matchClass = filter.className && filter.className !== 'ALL'
       ? (r.className ? r.className.toLowerCase().replace(/[^a-z0-9]/g, '') === filter.className.toLowerCase().replace(/[^a-z0-9]/g, '') : true)
       : true;
     const matchAct = filter.activityCode && filter.activityCode !== 'ALL' ? r.activityCode === filter.activityCode : true;
-    return matchMonth && matchClass && matchAct;
+    return matchTime && matchClass && matchAct;
   });
 
   const doc = new jsPDF({
@@ -256,14 +292,17 @@ export const exportAttendanceToPDF = (
   doc.line(14, 27, pageWidth - 14, 27);
 
   // Title
-  const monthLabel = filter.month ? formatIndonesianDate(`${filter.month}-01`).split(' ').slice(1).join(' ') : 'Semua Periode';
+  const periodLabel = isDaily && filter.date
+    ? `Harian (${formatIndonesianDate(filter.date)})`
+    : `Bulanan (${filter.month ? formatIndonesianDate(filter.month) : 'Semua Periode'})`;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text('LAPORAN REKAPITULASI ABSENSI PRESENSI SISWA', pageWidth / 2, 34, { align: 'center' });
+  doc.text(`LAPORAN REKAPITULASI ABSENSI PRESENSI SISWA ${isDaily ? 'HARIAN' : 'BULANAN'}`, pageWidth / 2, 34, { align: 'center' });
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Kelas: ${filter.className || 'Semua Kelas'}  |  Periode: ${monthLabel}  |  Jenis Kegiatan: ${filter.activityCode || 'Semua Kegiatan'}`, pageWidth / 2, 40, { align: 'center' });
+  doc.text(`Kelas: ${filter.className || 'Semua Kelas'}  |  Periode: ${periodLabel}  |  Jenis Sesi: ${filter.activityCode || 'Semua Sesi'}`, pageWidth / 2, 40, { align: 'center' });
 
   // Table columns
   const tableHeaders = [

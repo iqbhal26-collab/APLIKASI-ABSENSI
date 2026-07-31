@@ -46,7 +46,7 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
   onOpenExportModal,
   onUpdateAttendanceStatus,
 }) => {
-  const [timeframe, setTimeframe] = useState<'daily' | 'monthly'>('daily');
+  const [timeframe, setTimeframe] = useState<'daily' | 'daily_summary' | 'monthly'>('daily');
   const [selectedClassId, setSelectedClassId] = useState<string>(selectedClassIdProp || 'ALL');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // 'YYYY-MM'
@@ -178,7 +178,7 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
       {/* Control Bar: Timeframe, Filters & Date */}
       <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Timeframe Selector (Harian / Bulanan) */}
+          {/* Timeframe Selector (Harian Detail / Rekapan Harian / Bulanan) */}
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-white/10 text-xs font-bold">
             <button
               type="button"
@@ -188,7 +188,17 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>Laporan Harian</span>
+              <span>Rincian Harian</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeframe('daily_summary')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 cursor-pointer ${
+                timeframe === 'daily_summary' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Rekapan Harian</span>
             </button>
             <button
               type="button"
@@ -203,7 +213,7 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
           </div>
 
           {/* Date Picker or Month Picker */}
-          {timeframe === 'daily' ? (
+          {timeframe === 'daily' || timeframe === 'daily_summary' ? (
             <div className="flex items-center space-x-2 bg-slate-950 px-3 py-2 rounded-xl border border-white/10 text-xs">
               <Calendar className="w-4 h-4 text-emerald-400" />
               <input
@@ -319,6 +329,30 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
                     </th>
                   )}
                 </tr>
+              ) : timeframe === 'daily_summary' ? (
+                <tr>
+                  <th className="px-4 py-3.5 font-extrabold">No</th>
+                  <th className="px-4 py-3.5 font-extrabold">Kelas & Wali Kelas</th>
+                  <th className="px-4 py-3.5 font-extrabold text-center">Total Siswa</th>
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-emerald-950/40 border-x border-white/5">
+                    Hadir Datang (Terlambat)
+                  </th>
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-blue-950/40 border-r border-white/5">
+                    Sholat Dzuhur
+                  </th>
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-teal-950/40 border-r border-white/5">
+                    Sholat Jumat (Putra)
+                  </th>
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-indigo-950/40 border-r border-white/5">
+                    Jam Pulang
+                  </th>
+                  <th className="px-4 py-3.5 font-extrabold text-center bg-amber-950/40 border-r border-white/5">
+                    Surat Izin / Sakit
+                  </th>
+                  <th className="px-4 py-3.5 font-extrabold text-center">
+                    Tingkat Kehadiran
+                  </th>
+                </tr>
               ) : (
                 <tr>
                   <th className="px-4 py-3.5 font-extrabold">No</th>
@@ -346,7 +380,92 @@ export const IntegratedAttendanceReport: React.FC<IntegratedAttendanceReportProp
               )}
             </thead>
             <tbody key={`${timeframe}-${roleFilter}-${selectedDate}-${selectedMonth}`} className="divide-y divide-white/5 font-medium">
-              {filteredStudents.length === 0 ? (
+              {timeframe === 'daily_summary' ? (
+                (() => {
+                  const targetClasses = classes.filter(c => {
+                    if (selectedClassId !== 'ALL' && c.id !== selectedClassId) return false;
+                    if (searchQuery.trim()) {
+                      const q = searchQuery.toLowerCase().trim();
+                      const matchName = c.name.toLowerCase().includes(q);
+                      const matchTeacher = c.homeroomTeacherName?.toLowerCase().includes(q);
+                      return matchName || matchTeacher;
+                    }
+                    return true;
+                  });
+
+                  if (targetClasses.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={9} className="text-center py-12 text-slate-500">
+                          Tidak ada kelas ditemukan.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return targetClasses.map((cls, idx) => {
+                    const clsStudents = students.filter(s => s.classId === cls.id || (s.className && cls.name && s.className.toLowerCase().replace(/[^a-z0-9]/g, '') === cls.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
+                    const clsStudentIds = new Set(clsStudents.map(s => s.id));
+                    const clsMaleStudents = clsStudents.filter(s => s.gender === 'L');
+
+                    const dayRecords = records.filter(r => r.date === selectedDate && (clsStudentIds.has(r.studentId) || (r.className && cls.name && r.className.toLowerCase().replace(/[^a-z0-9]/g, '') === cls.name.toLowerCase().replace(/[^a-z0-9]/g, ''))));
+
+                    const datangCount = dayRecords.filter(r => r.activityCode === 'DATANG' && (r.status === 'hadir' || r.status === 'terlambat')).length;
+                    const terlambatCount = dayRecords.filter(r => r.activityCode === 'DATANG' && r.status === 'terlambat').length;
+                    const dzuhurCount = dayRecords.filter(r => r.activityCode === 'DZUHUR' && r.status === 'hadir').length;
+                    const jumatCount = dayRecords.filter(r => r.activityCode === 'JUMAT' && r.status === 'hadir').length;
+                    const pulangCount = dayRecords.filter(r => r.activityCode === 'PULANG' && r.status === 'hadir').length;
+
+                    const dayPermitsCount = permits.filter(p => p.date === selectedDate && p.status === 'approved' && clsStudentIds.has(p.studentId)).length;
+
+                    const totalStd = clsStudents.length || cls.studentCount || 0;
+                    const attendedTotal = datangCount + dayPermitsCount;
+                    const percent = totalStd > 0 ? Math.min(100, Math.round((attendedTotal / totalStd) * 100)) : 0;
+
+                    return (
+                      <tr key={`summary-${cls.id}`} className="hover:bg-white/5 transition-all">
+                        <td className="px-4 py-3.5 font-mono text-slate-500">{idx + 1}</td>
+                        <td className="px-4 py-3.5">
+                          <div className="font-extrabold text-white text-sm">Kelas {cls.name}</div>
+                          <div className="text-[11px] text-slate-400">
+                            Wali Kelas: {cls.homeroomTeacherName || 'Belum Diatur'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-center font-bold text-slate-300 font-mono">
+                          {totalStd} Siswa
+                        </td>
+                        <td className="px-4 py-3.5 text-center bg-emerald-950/20 border-x border-white/5">
+                          <div className="font-extrabold text-emerald-400 font-mono text-sm">{datangCount}</div>
+                          {terlambatCount > 0 && (
+                            <div className="text-[10px] text-amber-400 font-semibold mt-0.5">
+                              ({terlambatCount} terlambat)
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-center bg-blue-950/20 border-r border-white/5">
+                          <div className="font-extrabold text-blue-400 font-mono text-sm">{dzuhurCount}</div>
+                        </td>
+                        <td className="px-4 py-3.5 text-center bg-teal-950/20 border-r border-white/5">
+                          <div className="font-extrabold text-teal-400 font-mono text-sm">
+                            {clsMaleStudents.length > 0 ? `${jumatCount}/${clsMaleStudents.length}` : '-'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 text-center bg-indigo-950/20 border-r border-white/5">
+                          <div className="font-extrabold text-indigo-400 font-mono text-sm">{pulangCount}</div>
+                        </td>
+                        <td className="px-4 py-3.5 text-center bg-amber-950/20 border-r border-white/5">
+                          <div className="font-extrabold text-amber-300 font-mono text-sm">{dayPermitsCount}</div>
+                        </td>
+                        <td className="px-4 py-3.5 text-center">
+                          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-black">
+                            <span>{percent}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()
+              ) : filteredStudents.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="text-center py-12 text-slate-500">
                     Tidak ada data siswa ditemukan untuk kriteria yang dipilih.

@@ -83,6 +83,9 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
     : activities;
 
   const currentYearMonth = new Date().toISOString().substring(0, 7); // e.g. "2026-07"
+  const todayStr = new Date().toISOString().substring(0, 10); // e.g. "2026-07-30"
+  const [exportType, setExportType] = useState<'daily' | 'monthly'>('daily');
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedMonth, setSelectedMonth] = useState<string>(currentYearMonth);
   const [selectedClass, setSelectedClass] = useState<string>(() => {
     if ((isParent || isStudentRole) && linkedStudent) {
@@ -119,7 +122,9 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       filteredActivities,
       schoolConfig,
       {
-        month: selectedMonth,
+        reportType: exportType,
+        date: exportType === 'daily' ? selectedDate : undefined,
+        month: exportType === 'monthly' ? selectedMonth : undefined,
         className: targetClassName,
         activityCode: selectedActivity
       }
@@ -134,7 +139,9 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       filteredActivities,
       schoolConfig,
       {
-        month: selectedMonth,
+        reportType: exportType,
+        date: exportType === 'daily' ? selectedDate : undefined,
+        month: exportType === 'monthly' ? selectedMonth : undefined,
         className: targetClassName,
         activityCode: selectedActivity
       }
@@ -202,18 +209,65 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
               <span>Filter Periode & Kriteria</span>
             </div>
 
-            {/* Month selector */}
+            {/* Export Mode Selector: Daily vs Monthly */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Pilih Bulan & Tahun Absensi:
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Jenis / Mode Rekapan:
               </label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full bg-black/40 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-              />
+              <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setExportType('daily')}
+                  className={`py-2 px-3 rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                    exportType === 'daily'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Rekapan Harian</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportType('monthly')}
+                  className={`py-2 px-3 rounded-lg transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                    exportType === 'monthly'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Rekap Bulanan</span>
+                </button>
+              </div>
             </div>
+
+            {/* Date or Month Picker based on exportType */}
+            {exportType === 'daily' ? (
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Pilih Tanggal Presensi Harian:
+                </label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Pilih Bulan & Tahun Absensi:
+                </label>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                />
+              </div>
+            )}
 
             {/* Class filter */}
             <div>
