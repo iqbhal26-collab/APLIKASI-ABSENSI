@@ -418,6 +418,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   autoFocus
                 />
               </div>
+              {selectedRole === 'guru' && (
+                <p className="text-[11px] text-sky-300/90 mt-1.5 flex items-center gap-1">
+                  <CreditCard className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span>Password/akses Wali Kelas menggunakan <strong>NIP masing-masing</strong> (atau nama kelas, contoh: <strong>XI.B2</strong> / <strong>X IPA 1</strong>).</span>
+                </p>
+              )}
             </div>
 
             {/* Error Message */}
