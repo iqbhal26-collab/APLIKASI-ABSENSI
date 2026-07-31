@@ -16,56 +16,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   records,
   activities,
   schoolConfig,
-  onRecordAttendance
 }) => {
   const [showFullQr, setShowFullQr] = useState(false);
-  const [actionAlert, setActionAlert] = useState<string | null>(null);
   const todayStr = new Date().toISOString().split('T')[0];
   const myRecords = records.filter(r => r.studentId === student.id);
   const todayRecords = myRecords.filter(r => r.date === todayStr);
 
   const isFriday = new Date().getDay() === 5;
   const isMale = student.gender === 'L';
-
-  const handleSelfCheckIn = (act: ActivityType) => {
-    // Anti-duplicate check
-    const existing = todayRecords.find(r => r.activityCode === act.code);
-    if (existing) {
-      setActionAlert(`⚠️ PRESENSI GAGAL: Anda sudah melakukan presensi ${act.name} hari ini pada pukul ${existing.time} WIB. Presensi tidak bisa diulang!`);
-      return;
-    }
-
-    if (onRecordAttendance) {
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const hourMin = timeStr.substring(0, 5);
-      let status: 'hadir' | 'terlambat' = 'hadir';
-      if (act.endTime && hourMin > act.endTime) {
-        status = 'terlambat';
-      }
-
-      const ok = onRecordAttendance({
-        studentId: student.id,
-        studentName: student.name,
-        className: student.className,
-        gender: student.gender,
-        date: todayStr,
-        activityId: act.id,
-        activityCode: act.code,
-        activityName: act.name,
-        time: timeStr,
-        status: status,
-        method: 'SELF_CHECKIN',
-        notes: status === 'terlambat' ? 'Presensi mandiri melewati jam kegiatan' : undefined,
-      });
-
-      if (ok === false) {
-        setActionAlert(`⚠️ PRESENSI GAGAL: Presensi ${act.name} sudah tercatat sebelumnya. Data tidak bisa dobel!`);
-      } else {
-        setActionAlert(`✅ PRESENSI BERHASIL! Presensi ${act.name} telah dicatat pada pukul ${timeStr} WIB.`);
-      }
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -86,29 +44,26 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
         <button
           onClick={() => setShowFullQr(true)}
-          className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95"
+          className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
         >
           <QrCode className="w-5 h-5 text-slate-950" />
           <span>Tampilkan QR Kartu Pelajar Saya</span>
         </button>
       </div>
 
-      {/* Action alert */}
-      {actionAlert && (
-        <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between ${
-          actionAlert.includes('BERHASIL')
-            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'
-            : 'bg-rose-500/20 border-rose-500/40 text-rose-200'
-        }`}>
-          <span>{actionAlert}</span>
-          <button
-            onClick={() => setActionAlert(null)}
-            className="text-xs px-2 py-0.5 rounded bg-white/10 hover:bg-white/20"
-          >
-            Tutup
-          </button>
+      {/* Information Banner regarding Scanner Centric Attendance */}
+      <div className="bg-gradient-to-r from-blue-950/80 via-slate-900 to-slate-950 p-4 sm:p-5 rounded-2xl border border-blue-500/30 shadow-lg backdrop-blur-md flex items-start space-x-3.5">
+        <QrCode className="w-6 h-6 text-blue-400 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <h4 className="font-extrabold text-sm text-white flex items-center space-x-2">
+            <span>Sistem Presensi Barcode Terpusat</span>
+            <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 text-[10px] border border-blue-500/30 font-mono">INFO PRESENSI</span>
+          </h4>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Presensi siswa dicatat secara resmi melalui pemindaian/scan barcode QR Kartu Pelajar oleh <strong>Guru Piket</strong> (Datang & Pulang) serta <strong>Guru Agama</strong> (Sholat Dzuhur & Sholat Jumat). Tunjukkan QR Kartu Pelajar Anda ke petugas scanner.
+          </p>
         </div>
-      )}
+      </div>
 
       {/* Friday Prayer Alert for Males */}
       {isMale && (
@@ -128,7 +83,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       {/* Today Attendance Cards */}
       <div className="bg-white/5 backdrop-blur-md p-6 rounded-3xl border border-white/10 shadow-lg space-y-4">
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <h3 className="font-bold text-white text-base">Status Presensi Sesi Hari Ini</h3>
+          <h3 className="font-bold text-white text-base">Status Hasil Scan Barcode Hari Ini</h3>
           <span className="font-mono text-xs font-bold text-emerald-300 bg-emerald-500/20 px-3 py-1 rounded-full border border-emerald-500/30">
             {todayStr}
           </span>
@@ -142,6 +97,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
             const isFridayMaleAct = act.code === 'JUMAT';
             const isFemaleExempt = isFridayMaleAct && !isMale;
+
+            const scannerOfficer = (act.code === 'DZUHUR' || act.code === 'JUMAT') ? 'Guru Agama' : 'Guru Piket';
 
             return (
               <div
@@ -172,7 +129,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold px-2.5 py-0.5 bg-white/10 text-slate-300 rounded-full">
-                      BELUM ABSEN
+                      BELUM SCAN
                     </span>
                   )}
                 </div>
@@ -192,18 +149,25 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   </div>
 
                   {isCompleted ? (
-                    <div className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 text-center">
-                      🔒 Presensi Terkunci (Sudah Absen)
+                    <div className="p-2.5 rounded-xl text-[11px] font-bold text-center flex flex-col items-center justify-center space-y-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                      <div className="flex items-center space-x-1 text-emerald-400">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Presensi Terverifikasi</span>
+                      </div>
+                      <span className="text-[10px] text-slate-300 font-normal">
+                        Hasil Scan Barcode oleh {scannerOfficer}
+                      </span>
                     </div>
-                  ) : !isFemaleExempt && onRecordAttendance ? (
-                    <button
-                      type="button"
-                      onClick={() => handleSelfCheckIn(act)}
-                      className="w-full py-1.5 px-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-lg text-[11px] transition-all flex items-center justify-center space-x-1 active:scale-95 shadow-md shadow-emerald-500/20"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-950" />
-                      <span>Absen Mandiri Sekarang</span>
-                    </button>
+                  ) : !isFemaleExempt ? (
+                    <div className="p-2.5 rounded-xl text-[11px] font-bold text-center flex flex-col items-center justify-center space-y-1 bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                      <div className="flex items-center space-x-1 text-amber-400">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Belum Scan Barcode</span>
+                      </div>
+                      <span className="text-[10px] text-slate-300 font-normal">
+                        Tunjukkan QR Kartu ke {scannerOfficer}
+                      </span>
+                    </div>
                   ) : null}
                 </div>
               </div>

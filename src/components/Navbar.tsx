@@ -126,8 +126,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>{schoolConfig.useSupabaseLive ? 'Supabase Connected' : 'Supabase Setup'}</span>
             </button>
 
-            {/* Kios Scanner Button */}
-            {currentUser.role !== 'orang_tua' && (
+            {/* Kios Scanner Button - Only for Admin, Guru Piket, and Guru Agama */}
+            {(currentUser.role === 'admin' || currentUser.role === 'guru_piket' || currentUser.role === 'guru_agama') && (
               <button
                 onClick={onOpenScanner}
                 className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
