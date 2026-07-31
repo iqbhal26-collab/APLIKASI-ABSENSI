@@ -29,6 +29,10 @@ export interface Student {
   parentPhone: string;
   avatarUrl?: string;
   qrCode: string;
+  phone?: string;
+  email?: string;
+  birthDate?: string;
+  address?: string;
 }
 
 export interface User {

@@ -1,6 +1,28 @@
-import React, { useState } from 'react';
-import { Student, AttendanceRecord, ActivityType, SchoolConfig } from '../../types';
-import { GraduationCap, QrCode, CheckCircle2, Moon, Calendar, CreditCard, Sparkles, AlertCircle, Printer } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Student, AttendanceRecord, ActivityType, SchoolConfig, User } from '../../types';
+import {
+  GraduationCap,
+  QrCode,
+  CheckCircle2,
+  Moon,
+  Calendar,
+  CreditCard,
+  Sparkles,
+  AlertCircle,
+  Printer,
+  UserCog,
+  Save,
+  X,
+  Lock,
+  Phone,
+  Mail,
+  MapPin,
+  KeyRound,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  User as UserIcon,
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface StudentDashboardProps {
@@ -8,7 +30,12 @@ interface StudentDashboardProps {
   records: AttendanceRecord[];
   activities: ActivityType[];
   schoolConfig: SchoolConfig;
+  currentUser?: User;
   onRecordAttendance?: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
+  onUpdateStudentAccount?: (
+    updatedStudent: Student,
+    accountData?: { username?: string; password?: string }
+  ) => void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
@@ -16,14 +43,92 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   records,
   activities,
   schoolConfig,
+  currentUser,
+  onUpdateStudentAccount,
 }) => {
   const [showFullQr, setShowFullQr] = useState(false);
+  const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Form state initialized with student & user props
+  const [accountForm, setAccountForm] = useState({
+    name: student.name || '',
+    nisn: student.nisn || '',
+    gender: student.gender || 'L',
+    phone: student.phone || '',
+    email: student.email || '',
+    birthDate: student.birthDate || '',
+    address: student.address || '',
+    parentName: student.parentName || '',
+    parentPhone: student.parentPhone || '',
+    username: currentUser?.username || student.nisn || '',
+    password: currentUser?.password || '',
+  });
+
+  // Keep form updated if student prop changes
+  useEffect(() => {
+    setAccountForm({
+      name: student.name || '',
+      nisn: student.nisn || '',
+      gender: student.gender || 'L',
+      phone: student.phone || '',
+      email: student.email || '',
+      birthDate: student.birthDate || '',
+      address: student.address || '',
+      parentName: student.parentName || '',
+      parentPhone: student.parentPhone || '',
+      username: currentUser?.username || student.nisn || '',
+      password: currentUser?.password || '',
+    });
+  }, [student, currentUser]);
+
   const todayStr = new Date().toISOString().split('T')[0];
   const myRecords = records.filter(r => r.studentId === student.id);
   const todayRecords = myRecords.filter(r => r.date === todayStr);
 
   const isFriday = new Date().getDay() === 5;
   const isMale = student.gender === 'L';
+
+  const handleSaveAccountData = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accountForm.name.trim()) {
+      setToastMessage('⚠️ Nama lengkap siswa tidak boleh kosong!');
+      return;
+    }
+    if (!accountForm.nisn.trim()) {
+      setToastMessage('⚠️ NISN siswa tidak boleh kosong!');
+      return;
+    }
+
+    const updatedStudent: Student = {
+      ...student,
+      name: accountForm.name.trim(),
+      nisn: accountForm.nisn.trim(),
+      nis: student.nis || accountForm.nisn.trim(),
+      gender: accountForm.gender,
+      phone: accountForm.phone.trim(),
+      email: accountForm.email.trim(),
+      birthDate: accountForm.birthDate,
+      address: accountForm.address.trim(),
+      parentName: accountForm.parentName.trim(),
+      parentPhone: accountForm.parentPhone.trim(),
+      qrCode: `QR-STD-${accountForm.nisn.trim()}`,
+    };
+
+    if (onUpdateStudentAccount) {
+      onUpdateStudentAccount(updatedStudent, {
+        username: accountForm.username.trim() || accountForm.nisn.trim(),
+        password: accountForm.password.trim() || undefined,
+      });
+    }
+
+    setToastMessage('✅ Data akun dan profil siswa berhasil diperbarui!');
+    setTimeout(() => {
+      setToastMessage(null);
+      setIsEditAccountOpen(false);
+    }, 1500);
+  };
 
   return (
     <div className="space-y-6">
@@ -42,13 +147,23 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => setShowFullQr(true)}
-          className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center space-x-2 shrink-0 active:scale-95 cursor-pointer"
-        >
-          <QrCode className="w-5 h-5 text-slate-950" />
-          <span>Tampilkan QR Kartu Pelajar Saya</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => setIsEditAccountOpen(true)}
+            className="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-600/20 transition-all flex items-center space-x-2 active:scale-95 cursor-pointer border border-indigo-400/30"
+          >
+            <UserCog className="w-4 h-4 text-white" />
+            <span>Edit Data Akun</span>
+          </button>
+
+          <button
+            onClick={() => setShowFullQr(true)}
+            className="px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs rounded-2xl shadow-lg shadow-amber-500/20 transition-all flex items-center space-x-2 active:scale-95 cursor-pointer"
+          >
+            <QrCode className="w-4 h-4 text-slate-950" />
+            <span>Tampilkan QR Kartu Pelajar</span>
+          </button>
+        </div>
       </div>
 
       {/* Information Banner regarding Scanner Centric Attendance */}
@@ -217,6 +332,283 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Data Akun Siswa */}
+      {isEditAccountOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-white/15 w-full max-w-2xl my-8 relative">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-indigo-500/20 text-indigo-400 rounded-2xl border border-indigo-500/30">
+                  <UserCog className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg text-white">Edit Data Akun & Profil Siswa</h3>
+                  <p className="text-xs text-slate-400">
+                    Perbarui informasi identitas, nomor kontak, serta kata sandi akun login Anda.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditAccountOpen(false)}
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Notification Toast */}
+            {toastMessage && (
+              <div className={`p-4 rounded-2xl mb-5 text-xs font-bold border flex items-center justify-between animate-fadeIn ${
+                toastMessage.includes('✅')
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'
+                  : 'bg-rose-500/20 border-rose-500/40 text-rose-200'
+              }`}>
+                <span>{toastMessage}</span>
+                <button
+                  type="button"
+                  onClick={() => setToastMessage(null)}
+                  className="text-xs px-2 py-0.5 rounded bg-white/10 hover:bg-white/20"
+                >
+                  Tutup
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveAccountData} className="space-y-6">
+              {/* Section 1: Identitas Siswa */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 text-xs font-bold text-amber-400 uppercase tracking-wider border-b border-white/5 pb-2">
+                  <UserIcon className="w-4 h-4" />
+                  <span>1. Data Identitas Utama</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Nama Lengkap Siswa *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={accountForm.name}
+                      onChange={e => setAccountForm({ ...accountForm, name: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Masukkan nama lengkap..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      NISN (Nomor Induk Siswa Nasional) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={accountForm.nisn}
+                      onChange={e => setAccountForm({ ...accountForm, nisn: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-amber-400 font-mono text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Masukkan NISN..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Jenis Kelamin
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setAccountForm({ ...accountForm, gender: 'L' })}
+                        className={`py-2 px-3 rounded-lg transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                          accountForm.gender === 'L'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <span>Laki-Laki</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAccountForm({ ...accountForm, gender: 'P' })}
+                        className={`py-2 px-3 rounded-lg transition-all flex items-center justify-center space-x-1 cursor-pointer ${
+                          accountForm.gender === 'P'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <span>Perempuan</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Tanggal Lahir
+                    </label>
+                    <input
+                      type="date"
+                      value={accountForm.birthDate}
+                      onChange={e => setAccountForm({ ...accountForm, birthDate: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white font-mono text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Kontak & Alamat */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400 uppercase tracking-wider border-b border-white/5 pb-2">
+                  <Phone className="w-4 h-4" />
+                  <span>2. Informasi Kontak & Alamat</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      No. HP / WhatsApp Siswa
+                    </label>
+                    <input
+                      type="tel"
+                      value={accountForm.phone}
+                      onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                      placeholder="081234567890"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Email Siswa
+                    </label>
+                    <input
+                      type="email"
+                      value={accountForm.email}
+                      onChange={e => setAccountForm({ ...accountForm, email: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="siswa@sekolah.sch.id"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Alamat Tempat Tinggal
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={accountForm.address}
+                      onChange={e => setAccountForm({ ...accountForm, address: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Masukkan alamat lengkap..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Data Orang Tua / Wali */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center space-x-2 text-xs font-bold text-blue-400 uppercase tracking-wider border-b border-white/5 pb-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>3. Data Orang Tua / Wali</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Nama Orang Tua / Wali
+                    </label>
+                    <input
+                      type="text"
+                      value={accountForm.parentName}
+                      onChange={e => setAccountForm({ ...accountForm, parentName: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Nama Ayah / Ibu / Wali..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      No. HP Orang Tua / Wali
+                    </label>
+                    <input
+                      type="tel"
+                      value={accountForm.parentPhone}
+                      onChange={e => setAccountForm({ ...accountForm, parentPhone: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                      placeholder="081234567890"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Keamanan Akun Login */}
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center space-x-2 text-xs font-bold text-purple-400 uppercase tracking-wider border-b border-white/5 pb-2">
+                  <KeyRound className="w-4 h-4" />
+                  <span>4. Keamanan Akun Login</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Username Akun
+                    </label>
+                    <input
+                      type="text"
+                      value={accountForm.username}
+                      onChange={e => setAccountForm({ ...accountForm, username: e.target.value })}
+                      className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                      placeholder="Username login..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Password / PIN Baru
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={accountForm.password}
+                        onChange={e => setAccountForm({ ...accountForm, password: e.target.value })}
+                        className="w-full bg-slate-950 border border-white/10 text-white text-xs rounded-xl pl-3.5 pr-10 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                        placeholder="••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-3 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsEditAccountOpen(false)}
+                  className="flex-1 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all cursor-pointer border border-white/10"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl transition-all shadow-lg shadow-indigo-600/20 cursor-pointer flex items-center justify-center space-x-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Simpan Perubahan Akun</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

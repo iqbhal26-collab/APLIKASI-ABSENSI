@@ -718,6 +718,49 @@ export default function App() {
     dbUpdateClasses(schoolConfig, Array.from(updatedClassesMap.values()));
   };
 
+  // Update student profile and account login credentials
+  const handleUpdateStudentAccount = (
+    updatedStudent: Student,
+    accountData?: { username?: string; password?: string }
+  ) => {
+    // 1. Update students array
+    const updatedStudentsList = students.map(s => s.id === updatedStudent.id ? updatedStudent : s);
+    setStudents(updatedStudentsList);
+    localStorage.setItem('sma_students', JSON.stringify(updatedStudentsList));
+
+    // Sync to Supabase
+    dbAddStudent(schoolConfig, updatedStudent);
+
+    // 2. Update users list
+    const updatedUsersList = users.map(u => {
+      if (u.id === currentUser.id || u.username === updatedStudent.nisn || u.studentId === updatedStudent.id) {
+        return {
+          ...u,
+          name: updatedStudent.name,
+          phone: updatedStudent.phone || u.phone,
+          username: accountData?.username || u.username,
+          password: accountData?.password || u.password,
+        };
+      }
+      return u;
+    });
+    setUsers(updatedUsersList);
+    localStorage.setItem('sma_users', JSON.stringify(updatedUsersList));
+
+    // 3. Update active currentUser
+    if (currentUser.role === 'siswa') {
+      const updatedCurrUser = {
+        ...currentUser,
+        name: updatedStudent.name,
+        phone: updatedStudent.phone || currentUser.phone,
+        username: accountData?.username || currentUser.username,
+        password: accountData?.password || currentUser.password,
+      };
+      setCurrentUser(updatedCurrUser);
+      localStorage.setItem('sma_current_user', JSON.stringify(updatedCurrUser));
+    }
+  };
+
   // Delete student
   const handleDeleteStudent = (id: string) => {
     const targetStudent = students.find(s => s.id === id);
@@ -1045,10 +1088,12 @@ export default function App() {
       return (
         <StudentDashboard
           student={linkedStudent}
+          currentUser={currentUser}
           records={attendanceRecords}
           activities={activities}
           schoolConfig={schoolConfig}
           onRecordAttendance={handleRecordAttendance}
+          onUpdateStudentAccount={handleUpdateStudentAccount}
         />
       );
     }
