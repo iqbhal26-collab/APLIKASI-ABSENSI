@@ -976,6 +976,7 @@ export default function App() {
               activities={activities}
               classes={classes}
               permits={permits}
+              schoolConfig={schoolConfig}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenScanner={() => setIsScannerOpen(true)}
               onOpenExportModal={() => setIsExportModalOpen(true)}
@@ -992,6 +993,7 @@ export default function App() {
           students={students}
           records={attendanceRecords}
           permits={permits}
+          schoolConfig={schoolConfig}
           teacherClassHandled={activeTeacherClasses.map(c => c.id)}
           currentUser={currentUser}
           activeTab={activeTab}
@@ -1007,8 +1009,11 @@ export default function App() {
           students={students}
           activities={activities}
           records={attendanceRecords}
+          classes={classes}
+          permits={permits}
           schoolConfig={schoolConfig}
           onRecordAttendance={handleRecordAttendance}
+          onOpenExportModal={() => setIsExportModalOpen(true)}
         />
       );
     } else if (currentUser.role === 'guru_agama') {
@@ -1018,6 +1023,8 @@ export default function App() {
           activities={activities}
           students={students}
           records={attendanceRecords}
+          permits={permits}
+          schoolConfig={schoolConfig}
           onUpdateAttendanceStatus={handleUpdateAttendanceStatus}
           onOpenExportModal={() => setIsExportModalOpen(true)}
         />

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { SchoolClass, ActivityType, Student, AttendanceRecord, AttendanceStatus, SchoolConfig } from '../../types';
+import { SchoolClass, ActivityType, Student, AttendanceRecord, AttendanceStatus, SchoolConfig, PermitSubmission } from '../../types';
 import { Moon, FileSpreadsheet, Filter, Search, Calendar, CheckCircle2, Clock, Check, X, AlertCircle, BookOpen, ShieldCheck } from 'lucide-react';
+import { IntegratedAttendanceReport } from '../common/IntegratedAttendanceReport';
 
 interface ReligionTeacherDashboardProps {
   classes: SchoolClass[];
   activities: ActivityType[];
   students: Student[];
   records: AttendanceRecord[];
+  permits?: PermitSubmission[];
+  schoolConfig?: SchoolConfig;
   onUpdateAttendanceStatus: (studentId: string, activityCode: string, newStatus: AttendanceStatus, notes?: string) => void;
   onOpenExportModal: () => void;
 }
@@ -16,9 +19,12 @@ export const ReligionTeacherDashboard: React.FC<ReligionTeacherDashboardProps> =
   activities,
   students,
   records,
+  permits = [],
+  schoolConfig,
   onUpdateAttendanceStatus,
   onOpenExportModal
 }) => {
+  const [activeReligionTab, setActiveReligionTab] = useState<'sholat' | 'report'>('sholat');
   const [selectedClassId, setSelectedClassId] = useState<string>('ALL');
   const [selectedActivityCode, setSelectedActivityCode] = useState<string>('ALL'); // 'ALL' | 'DZUHUR' | 'JUMAT'
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -81,6 +87,48 @@ export const ReligionTeacherDashboard: React.FC<ReligionTeacherDashboardProps> =
           <span>Cetak Laporan Sholat (.XLSX / .PDF)</span>
         </button>
       </div>
+
+      {/* Navigation Tabs (Sholat vs Integrated Report) */}
+      <div className="flex items-center bg-slate-900/80 p-1.5 rounded-2xl border border-white/10 w-fit">
+        <button
+          type="button"
+          onClick={() => setActiveReligionTab('sholat')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+            activeReligionTab === 'sholat'
+              ? 'bg-emerald-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Moon className="w-4 h-4" />
+          <span>Pemantauan Sholat Dzuhur & Jumat</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveReligionTab('report')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+            activeReligionTab === 'report'
+              ? 'bg-emerald-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-300" />
+          <span>Laporan Terintegrasi (Piket, Agama, Wali Kelas)</span>
+        </button>
+      </div>
+
+      {activeReligionTab === 'report' ? (
+        <IntegratedAttendanceReport
+          classes={classes}
+          activities={activities}
+          students={students}
+          records={records}
+          permits={permits}
+          schoolConfig={schoolConfig || { schoolName: 'Sekolah', npsn: '', address: '', academicYear: '', semester: '', principalName: '', principalNip: '', toleranceMinutes: 15 }}
+          userRole="guru_agama"
+          onOpenExportModal={onOpenExportModal}
+        />
+      ) : (
+        <>
 
       {/* Stats Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -377,6 +425,8 @@ export const ReligionTeacherDashboard: React.FC<ReligionTeacherDashboardProps> =
           </table>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

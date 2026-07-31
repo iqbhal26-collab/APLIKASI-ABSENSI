@@ -1,5 +1,5 @@
 import React from 'react';
-import { Student, AttendanceRecord, ActivityType, SchoolClass, PermitSubmission } from '../../types';
+import { Student, AttendanceRecord, ActivityType, SchoolClass, PermitSubmission, SchoolConfig } from '../../types';
 import {
   Users,
   CheckCircle2,
@@ -13,8 +13,10 @@ import {
   Calendar,
   Sparkles,
   Award,
-  School
+  School,
+  ShieldCheck
 } from 'lucide-react';
+import { IntegratedAttendanceReport } from '../common/IntegratedAttendanceReport';
 
 interface AdminDashboardProps {
   students: Student[];
@@ -22,6 +24,7 @@ interface AdminDashboardProps {
   activities: ActivityType[];
   classes: SchoolClass[];
   permits: PermitSubmission[];
+  schoolConfig?: SchoolConfig;
   onNavigateTab: (tabId: string) => void;
   onOpenScanner: () => void;
   onOpenExportModal: () => void;
@@ -34,6 +37,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   activities,
   classes,
   permits,
+  schoolConfig,
   onNavigateTab,
   onOpenScanner,
   onOpenExportModal,
@@ -252,6 +256,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Integrated Attendance Report Section for Admin */}
+      <IntegratedAttendanceReport
+        classes={classes}
+        activities={activities}
+        students={students}
+        records={records}
+        permits={permits}
+        schoolConfig={schoolConfig || { schoolName: 'Sekolah', npsn: '', address: '', academicYear: '', semester: '', principalName: '', principalNip: '', toleranceMinutes: 15 }}
+        userRole="admin"
+        onOpenExportModal={onOpenExportModal}
+      />
     </div>
   );
 };

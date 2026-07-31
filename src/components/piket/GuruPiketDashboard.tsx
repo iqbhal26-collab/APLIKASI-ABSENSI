@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User, Student, ActivityType, AttendanceRecord, SchoolConfig } from '../../types';
+import { User, Student, ActivityType, AttendanceRecord, SchoolConfig, SchoolClass, PermitSubmission } from '../../types';
 import {
   QrCode,
   CheckCircle2,
@@ -17,17 +17,23 @@ import {
   Check,
   UserCheck,
   Zap,
-  Barcode
+  Barcode,
+  FileSpreadsheet,
+  ShieldCheck
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { IntegratedAttendanceReport } from '../common/IntegratedAttendanceReport';
 
 interface GuruPiketDashboardProps {
   currentUser: User;
   students: Student[];
   activities: ActivityType[];
   records: AttendanceRecord[];
+  classes?: SchoolClass[];
+  permits?: PermitSubmission[];
   schoolConfig: SchoolConfig;
   onRecordAttendance: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
+  onOpenExportModal?: () => void;
 }
 
 // Audio warning chime & speech synthesis
@@ -104,9 +110,14 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
   students,
   activities,
   records,
+  classes = [],
+  permits = [],
   schoolConfig,
   onRecordAttendance,
+  onOpenExportModal,
 }) => {
+  const [activePiketTab, setActivePiketTab] = useState<'scanner' | 'report'>('scanner');
+
   // Only DATANG and PULANG activities for Guru Piket
   const piquetActivities = activities.filter(
     a => a.code === 'DATANG' || a.code === 'PULANG'
@@ -372,10 +383,12 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
               <span>Portal Guru Piket Sekolah</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Kios Pemindaian Barcode & QR Siswa
+              {activePiketTab === 'scanner' ? 'Kios Pemindaian Barcode & QR Siswa' : 'Laporan Terintegrasi Guru Piket'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-300">
-              Fasilitas khusus Guru Piket untuk mencatat Presensi Jam Datang Pagi & Jam Pulang Siswa secara realtime.
+              {activePiketTab === 'scanner'
+                ? 'Fasilitas khusus Guru Piket untuk mencatat Presensi Jam Datang Pagi & Jam Pulang Siswa secara realtime.'
+                : 'Koneksi laporan terpadu antara hasil pemindaian Guru Piket, Guru Agama (Sholat), dan Wali Kelas (Verifikasi Izin).'}
             </p>
           </div>
 
@@ -389,6 +402,48 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Navigation Tabs (Scanner vs Integrated Report) */}
+      <div className="flex items-center bg-slate-900/80 p-1.5 rounded-2xl border border-white/10 w-fit">
+        <button
+          type="button"
+          onClick={() => setActivePiketTab('scanner')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+            activePiketTab === 'scanner'
+              ? 'bg-indigo-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <QrCode className="w-4 h-4" />
+          <span>Pemindaian Kios Barcode</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActivePiketTab('report')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+            activePiketTab === 'report'
+              ? 'bg-indigo-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          <span>Laporan Terintegrasi (Piket, Agama, Wali Kelas)</span>
+        </button>
+      </div>
+
+      {activePiketTab === 'report' ? (
+        <IntegratedAttendanceReport
+          classes={classes}
+          activities={activities}
+          students={students}
+          records={records}
+          permits={permits}
+          schoolConfig={schoolConfig}
+          userRole="guru_piket"
+          onOpenExportModal={onOpenExportModal}
+        />
+      ) : (
+        <>
 
       {/* Activity Mode Selector (DATANG vs PULANG) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -804,6 +859,8 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

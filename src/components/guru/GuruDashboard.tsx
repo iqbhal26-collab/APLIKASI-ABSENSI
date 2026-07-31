@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus, User } from '../../types';
+import { SchoolClass, ActivityType, Student, AttendanceRecord, PermitSubmission, AttendanceStatus, User, SchoolConfig } from '../../types';
 import {
   UserCheck,
   FileSpreadsheet,
@@ -17,6 +17,7 @@ import {
   Users,
   FileText
 } from 'lucide-react';
+import { IntegratedAttendanceReport } from '../common/IntegratedAttendanceReport';
 
 interface GuruDashboardProps {
   classes: SchoolClass[];
@@ -24,6 +25,7 @@ interface GuruDashboardProps {
   students: Student[];
   records: AttendanceRecord[];
   permits: PermitSubmission[];
+  schoolConfig?: SchoolConfig;
   teacherClassHandled?: string[];
   currentUser?: User;
   activeTab?: string;
@@ -38,12 +40,14 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
   students,
   records,
   permits,
+  schoolConfig,
   currentUser,
   activeTab = 'class_attendance',
   onUpdateAttendanceStatus,
   onApprovePermit,
   onOpenExportModal
 }) => {
+  const [guruViewMode, setGuruViewMode] = useState<'normal' | 'integrated'>('normal');
   const activeClasses = classes;
 
   const [selectedClassId, setSelectedClassId] = useState<string>(
@@ -168,6 +172,50 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
           <span>Cetak Laporan Kelas (.XLSX / .PDF)</span>
         </button>
       </div>
+
+      {/* Mode Selector Tabs (Verifikasi Kelas vs Laporan Terintegrasi 3 Peran) */}
+      <div className="flex items-center bg-slate-900/80 p-1.5 rounded-2xl border border-white/10 w-fit">
+        <button
+          type="button"
+          onClick={() => setGuruViewMode('normal')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+            guruViewMode === 'normal'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <UserCheck className="w-4 h-4" />
+          <span>Verifikasi & Presensi Kelas</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setGuruViewMode('integrated')}
+          className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center space-x-2 cursor-pointer ${
+            guruViewMode === 'integrated'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-300" />
+          <span>Laporan Terintegrasi (Piket, Agama, Wali Kelas)</span>
+        </button>
+      </div>
+
+      {guruViewMode === 'integrated' ? (
+        <IntegratedAttendanceReport
+          classes={activeClasses}
+          activities={activities}
+          students={students}
+          records={records}
+          permits={permits}
+          schoolConfig={schoolConfig || { schoolName: 'Sekolah', npsn: '', address: '', academicYear: '', semester: '', principalName: '', principalNip: '', toleranceMinutes: 15 }}
+          userRole="guru"
+          selectedClassIdProp={selectedClassId}
+          onOpenExportModal={onOpenExportModal}
+          onUpdateAttendanceStatus={onUpdateAttendanceStatus}
+        />
+      ) : (
+        <>
 
       {/* Stats Summary Cards - Matched with Guru Agama layout */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -850,6 +898,8 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
