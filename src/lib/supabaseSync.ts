@@ -693,7 +693,7 @@ export async function dbUpdateSchoolConfig(config: SchoolConfig) {
   if (!supabase) return;
 
   try {
-    await supabase.from('school_config').upsert({
+    const payload: any = {
       id: '00000000-0000-0000-0000-000000000001',
       school_name: config.schoolName,
       npsn: config.npsn,
@@ -703,7 +703,16 @@ export async function dbUpdateSchoolConfig(config: SchoolConfig) {
       principal_name: config.principalName,
       principal_nip: config.principalNip,
       tolerance_minutes: config.toleranceMinutes,
-    });
+      logo_url: config.logoUrl || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('school_config').upsert(payload);
+    if (error) {
+      console.warn('dbUpdateSchoolConfig full payload failed, trying fallback without logo_url...', error);
+      delete payload.logo_url;
+      await supabase.from('school_config').upsert(payload);
+    }
   } catch (err) {
     console.warn('dbUpdateSchoolConfig error:', err);
   }
