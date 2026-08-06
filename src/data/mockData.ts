@@ -1,4 +1,4 @@
-import { ActivityType, Student, User, AttendanceRecord, PermitSubmission, PushNotification, SchoolClass, SchoolConfig } from '../types';
+import { ActivityType, Student, User, AttendanceRecord, PermitSubmission, PushNotification, SchoolClass, SchoolConfig, Announcement } from '../types';
 
 export const PERMANENT_SUPABASE_URL = 'https://kxqussgukahewhguewlp.supabase.co';
 export const PERMANENT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4cXVzc2d1a2FoZXdoZ3Vld2xwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNTE3NjYsImV4cCI6MjEwMDcyNzc2Nn0.Y2NIbNS32ZlX-pNaHJ-Dl18Z4zVwWjY1PyGK493V3Wo';
@@ -420,5 +420,49 @@ export const initialNotifications: PushNotification[] = [
     timestamp: `${getTodayStr()} 11:58:00`,
     isRead: false,
     studentName: 'Muhammad Rizky Pratama',
+  }
+];
+
+export const initialAnnouncements: Announcement[] = [
+  {
+    id: 'ann-1',
+    title: 'Pelaksanaan Presensi Digital Real-Time & Tata Tertib Kedisiplinan Pagi',
+    content: 'Diberitahukan kepada seluruh Siswa SMAN 2 Bulukumba dan Bapak/Ibu Orang Tua Wali murid, presensi harian datang, pulang, dan kegiatan keagamaan kini dipantau secara real-time melalui sistem presensi digital.\n\nSiswa diwajibkan melakukan scan QR Code sebelum jam 07:15 WIB. Batas toleransi keterlambatan adalah 15 menit.',
+    category: 'PENTING',
+    authorId: 'user-admin-1',
+    authorName: 'Administrator Sekolah',
+    authorRole: 'admin',
+    targetType: 'ALL',
+    date: getTodayStr(),
+    createdAt: `${getTodayStr()} 06:00:00`,
+    isPinned: true,
+  },
+  {
+    id: 'ann-2',
+    title: 'Jadwal dan Ketentuan Sholat Dzuhur & Sholat Jumat Berjamaah',
+    content: 'Assalamu\'alaikum Wr. Wb.\n\nDisampaikan kepada seluruh siswa, pelaksanaan Sholat Dzuhur berjamaah dimulai pukul 12:00 WIB di Masjid Sekolah.\n\nKhusus hari Jumat, siswa laki-laki wajib mengikuti Sholat Jumat tepat waktu dan membawa sajadah/peralatan ibadah pribadi.',
+    category: 'Keagamaan',
+    authorId: 'usr-agama-1',
+    authorName: 'Drs. H. Ahmad Dahlan, M.PdI',
+    authorRole: 'guru_agama',
+    targetType: 'ALL',
+    date: getTodayStr(),
+    createdAt: `${getTodayStr()} 07:30:00`,
+    isPinned: true,
+  },
+  {
+    id: 'ann-3',
+    title: 'Informasi Kegiatan Pembelajaran & Pertemuan Orang Tua Wali Kelas X IPA 1',
+    content: 'Kepada Yth. Orang Tua Wali dan Siswa Kelas X IPA 1,\n\nWali kelas mengundang dalam pertemuan koordinasi awal semester mengenai perkembangan belajar anak, absensi harian, dan persiapan ujian tengah semester.\n\nJadwal konsultasi wali kelas dibuka setiap hari Sabtu pukul 09:00 - 11:00 WIB di ruang kelas X IPA 1.',
+    category: 'Akademik',
+    authorId: 'usr-guru-1',
+    authorName: 'Dra. Hajah Nurhayati, M.Pd',
+    authorRole: 'guru',
+    targetType: 'CLASS',
+    targetClassId: 'cls-1',
+    targetClassName: 'X IPA 1',
+    date: getTodayStr(),
+    createdAt: `${getTodayStr()} 08:15:00`,
+    isPinned: false,
   }
 ];

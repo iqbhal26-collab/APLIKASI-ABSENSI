@@ -195,6 +195,23 @@ CREATE TABLE IF NOT EXISTS public.push_notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 8. Table Pengumuman Sekolah
+CREATE TABLE IF NOT EXISTS public.announcements (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    category VARCHAR(30) DEFAULT 'Informasi Umum',
+    author_id TEXT,
+    author_name TEXT NOT NULL,
+    author_role VARCHAR(30) NOT NULL,
+    target_type VARCHAR(10) NOT NULL DEFAULT 'ALL',
+    target_class_id TEXT,
+    target_class_name TEXT,
+    date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_pinned BOOLEAN DEFAULT FALSE
+);
+
 -- Enable Row Level Security (RLS) & Allow public read/write for app demo
 ALTER TABLE public.school_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
@@ -204,6 +221,7 @@ ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.permit_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.push_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public full access" ON public.school_config;
 DROP POLICY IF EXISTS "Allow public full access" ON public.classes;
@@ -213,6 +231,7 @@ DROP POLICY IF EXISTS "Allow public full access" ON public.activities;
 DROP POLICY IF EXISTS "Allow public full access" ON public.attendance_records;
 DROP POLICY IF EXISTS "Allow public full access" ON public.permit_submissions;
 DROP POLICY IF EXISTS "Allow public full access" ON public.push_notifications;
+DROP POLICY IF EXISTS "Allow public full access" ON public.announcements;
 
 CREATE POLICY "Allow public full access" ON public.school_config FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.classes FOR ALL USING (true) WITH CHECK (true);
@@ -222,4 +241,5 @@ CREATE POLICY "Allow public full access" ON public.activities FOR ALL USING (tru
 CREATE POLICY "Allow public full access" ON public.attendance_records FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.permit_submissions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public full access" ON public.push_notifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public full access" ON public.announcements FOR ALL USING (true) WITH CHECK (true);
 `;

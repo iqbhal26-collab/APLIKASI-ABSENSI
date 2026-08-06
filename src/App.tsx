@@ -15,7 +15,8 @@ import {
   PermitSubmission,
   PushNotification,
   SchoolConfig,
-  AttendanceStatus
+  AttendanceStatus,
+  Announcement
 } from './types';
 import {
   PERMANENT_SUPABASE_URL,
@@ -28,7 +29,8 @@ import {
   initialUsers,
   initialAttendanceRecords,
   initialPermitSubmissions,
-  initialNotifications
+  initialNotifications,
+  initialAnnouncements
 } from './data/mockData';
 import {
   fetchAllFromSupabase,
@@ -47,7 +49,10 @@ import {
   dbPushNotification,
   dbMarkNotificationRead,
   dbAddTeacher,
-  dbDeleteTeacher
+  dbDeleteTeacher,
+  dbSaveAnnouncement,
+  dbDeleteAnnouncement,
+  dbTogglePinAnnouncement
 } from './lib/supabaseSync';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
@@ -56,6 +61,7 @@ import { RoleSelectorModal } from './components/RoleSelectorModal';
 import { AttendanceScannerModal } from './components/common/AttendanceScannerModal';
 import { NotificationDrawer } from './components/common/NotificationDrawer';
 import { ReportExportModal } from './components/common/ReportExportModal';
+import { AnnouncementsView } from './components/common/AnnouncementsView';
 import { ExcelImportModal } from './components/admin/ExcelImportModal';
 import { ParsedStudentRow, ParsedTeacherRow } from './lib/excelTemplates';
 import { getTeacherClasses } from './lib/teacherUtils';
@@ -143,6 +149,15 @@ export default function App() {
     const saved = localStorage.getItem('sma_notifications');
     return saved ? JSON.parse(saved) : initialNotifications;
   });
+
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
+    const saved = localStorage.getItem('sma_announcements');
+    return saved ? JSON.parse(saved) : initialAnnouncements;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sma_announcements', JSON.stringify(announcements));
+  }, [announcements]);
 
   // Authentication & Current active user login
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -311,6 +326,7 @@ export default function App() {
         if (result.attendanceRecords) setAttendanceRecords(result.attendanceRecords);
         if (result.permits) setPermits(result.permits);
         if (result.notifications) setNotifications(result.notifications);
+        if (result.announcements && result.announcements.length > 0) setAnnouncements(result.announcements);
 
         setSyncStatus({
           isSyncing: false,
@@ -483,6 +499,39 @@ export default function App() {
     else if (user.role === 'guru_agama') setActiveTab('religion_report');
     else if (user.role === 'orang_tua') setActiveTab('parent_child');
     else if (user.role === 'siswa') setActiveTab('student_my');
+  };
+
+  // Announcement Handlers
+  const handleAddAnnouncement = (newAnn: Omit<Announcement, 'id' | 'createdAt' | 'date'>) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const fullDateStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const created: Announcement = {
+      ...newAnn,
+      id: `ann-${Date.now()}`,
+      date: todayStr,
+      createdAt: fullDateStr,
+    };
+
+    setAnnouncements(prev => [created, ...prev]);
+    dbSaveAnnouncement(schoolConfig, created);
+  };
+
+  const handleDeleteAnnouncement = (id: string) => {
+    setAnnouncements(prev => prev.filter(a => a.id !== id));
+    dbDeleteAnnouncement(schoolConfig, id);
+  };
+
+  const handleTogglePinAnnouncement = (id: string) => {
+    setAnnouncements(prev =>
+      prev.map(a => {
+        if (a.id === id) {
+          const nextPinned = !a.isPinned;
+          dbTogglePinAnnouncement(schoolConfig, id, nextPinned);
+          return { ...a, isPinned: nextPinned };
+        }
+        return a;
+      })
+    );
   };
 
   // Record Attendance from Scanner or Manual
@@ -919,6 +968,20 @@ export default function App() {
 
   // Render main content area based on role and activeTab
   const renderMainContent = () => {
+    if (activeTab === 'announcements') {
+      return (
+        <AnnouncementsView
+          currentUser={currentUser}
+          announcements={announcements}
+          classes={classes}
+          students={students}
+          onAddAnnouncement={handleAddAnnouncement}
+          onDeleteAnnouncement={handleDeleteAnnouncement}
+          onTogglePinAnnouncement={handleTogglePinAnnouncement}
+        />
+      );
+    }
+
     if (currentUser.role === 'admin') {
       switch (activeTab) {
         case 'dashboard':
@@ -1086,6 +1149,8 @@ export default function App() {
           activities={activities}
           permits={permits}
           notifications={notifications}
+          announcements={announcements}
+          onNavigateTab={(tab) => setActiveTab(tab)}
           onSubmitPermit={handleSubmitPermit}
           onOpenExportModal={() => setIsExportModalOpen(true)}
         />
@@ -1098,6 +1163,8 @@ export default function App() {
           records={attendanceRecords}
           activities={activities}
           schoolConfig={schoolConfig}
+          announcements={announcements}
+          onNavigateTab={(tab) => setActiveTab(tab)}
           onRecordAttendance={handleRecordAttendance}
           onUpdateStudentAccount={handleUpdateStudentAccount}
         />

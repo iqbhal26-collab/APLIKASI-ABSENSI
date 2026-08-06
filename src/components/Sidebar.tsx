@@ -15,7 +15,8 @@ import {
   CreditCard,
   Moon,
   School,
-  UserCheck
+  UserCheck,
+  Megaphone
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -34,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'admin':
         return [
           { id: 'dashboard', label: 'Dasbor Utama', icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: 'announcements', label: 'Pengumuman Sekolah', icon: <Megaphone className="w-4 h-4" /> },
           { id: 'teachers', label: 'Kelola Data Guru & Agama', icon: <UserCheck className="w-4 h-4" /> },
           { id: 'classes', label: 'Kelola Kelas & Wali Kelas', icon: <School className="w-4 h-4" /> },
           { id: 'users', label: 'Kelola Pengguna & Siswa', icon: <Users className="w-4 h-4" /> },
@@ -46,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'guru':
         return [
           { id: 'class_attendance', label: 'Presensi Kelas Hari Ini', icon: <CheckCircle2 className="w-4 h-4" /> },
+          { id: 'announcements', label: 'Pengumuman Kelas', icon: <Megaphone className="w-4 h-4" /> },
           { id: 'permits', label: 'Persetujuan Izin / Sakit', icon: <FileText className="w-4 h-4" /> },
           { id: 'reports', label: 'Rekap Absensi Kelas', icon: <FileSpreadsheet className="w-4 h-4" /> },
         ];
@@ -53,12 +56,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'guru_agama':
         return [
           { id: 'religion_report', label: 'Laporan Sholat Dzuhur & Jumat', icon: <Moon className="w-4 h-4" /> },
+          { id: 'announcements', label: 'Pengumuman Agama & Sekolah', icon: <Megaphone className="w-4 h-4" /> },
           { id: 'reports', label: 'Ekspor Laporan Sholat', icon: <FileSpreadsheet className="w-4 h-4" /> },
         ];
 
       case 'orang_tua':
         return [
           { id: 'parent_child', label: 'Presensi Realtime Anak', icon: <LayoutDashboard className="w-4 h-4" /> },
+          { id: 'announcements', label: 'Pengumuman Sekolah', icon: <Megaphone className="w-4 h-4" /> },
           { id: 'parent_history', label: 'Riwayat & Kalender', icon: <Calendar className="w-4 h-4" /> },
           { id: 'parent_permit', label: 'Ajukan Surat Izin/Sakit', icon: <HeartHandshake className="w-4 h-4" /> },
           { id: 'notifications', label: 'Pusat Notifikasi Push', icon: <Bell className="w-4 h-4" /> },
@@ -67,6 +72,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'siswa':
         return [
           { id: 'student_my', label: 'Presensi Hari Ini', icon: <CheckCircle2 className="w-4 h-4" /> },
+          { id: 'announcements', label: 'Pengumuman Sekolah', icon: <Megaphone className="w-4 h-4" /> },
           { id: 'student_card', label: 'Kartu Pelajar Digital', icon: <CreditCard className="w-4 h-4" /> },
           { id: 'student_friday', label: 'Jadwal Sholat Jumat/Dzuhur', icon: <Moon className="w-4 h-4" /> },
         ];

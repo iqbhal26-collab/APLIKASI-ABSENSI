@@ -7,7 +7,8 @@ import {
   AttendanceRecord,
   PermitSubmission,
   PushNotification,
-  User
+  User,
+  Announcement
 } from '../types';
 
 export interface SupabaseFetchResult {
@@ -21,6 +22,7 @@ export interface SupabaseFetchResult {
   attendanceRecords?: AttendanceRecord[];
   permits?: PermitSubmission[];
   notifications?: PushNotification[];
+  announcements?: Announcement[];
   isEmpty?: boolean;
 }
 
@@ -92,6 +94,18 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
       .select('*')
       .order('created_at', { ascending: false });
     if (notifsError) throw notifsError;
+
+    // 8. Fetch Announcements
+    let announcementsData: any[] = [];
+    try {
+      const { data: annData } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (annData) announcementsData = annData;
+    } catch (e) {
+      console.warn('Announcements table might not exist yet:', e);
+    }
 
     const isEmpty =
       (!studentsData || studentsData.length === 0) &&
@@ -203,6 +217,22 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
       studentName: n.student_name,
     }));
 
+    const fetchedAnnouncements: Announcement[] = (announcementsData || []).map(a => ({
+      id: a.id,
+      title: a.title,
+      content: a.content,
+      category: a.category || 'Informasi Umum',
+      authorId: a.author_id,
+      authorName: a.author_name,
+      authorRole: a.author_role,
+      targetType: a.target_type || 'ALL',
+      targetClassId: a.target_class_id || undefined,
+      targetClassName: a.target_class_name || undefined,
+      date: a.date || new Date().toISOString().split('T')[0],
+      createdAt: a.created_at || new Date().toISOString(),
+      isPinned: a.is_pinned ?? false,
+    }));
+
     return {
       success: true,
       message: 'Berhasil menyinkronkan data dari Supabase Database.',
@@ -214,6 +244,7 @@ export async function fetchAllFromSupabase(config: SchoolConfig): Promise<Supaba
       attendanceRecords: fetchedAttendance,
       permits: fetchedPermits,
       notifications: fetchedNotifs,
+      announcements: fetchedAnnouncements,
       isEmpty,
     };
   } catch (error: any) {
@@ -780,5 +811,55 @@ export async function dbDeleteTeacher(config: SchoolConfig, teacherId: string) {
     await supabase.from('teachers').delete().eq('id', teacherId);
   } catch (err) {
     console.warn('dbDeleteTeacher error:', err);
+  }
+}
+
+export async function dbSaveAnnouncement(config: SchoolConfig, ann: Announcement) {
+  if (!config.useSupabaseLive) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    await supabase.from('announcements').upsert({
+      id: ann.id,
+      title: ann.title,
+      content: ann.content,
+      category: ann.category,
+      author_id: ann.authorId,
+      author_name: ann.authorName,
+      author_role: ann.authorRole,
+      target_type: ann.targetType,
+      target_class_id: ann.targetClassId || null,
+      target_class_name: ann.targetClassName || null,
+      date: ann.date,
+      created_at: ann.createdAt,
+      is_pinned: ann.isPinned ?? false,
+    });
+  } catch (err) {
+    console.warn('dbSaveAnnouncement error:', err);
+  }
+}
+
+export async function dbDeleteAnnouncement(config: SchoolConfig, id: string) {
+  if (!config.useSupabaseLive) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    await supabase.from('announcements').delete().eq('id', id);
+  } catch (err) {
+    console.warn('dbDeleteAnnouncement error:', err);
+  }
+}
+
+export async function dbTogglePinAnnouncement(config: SchoolConfig, id: string, isPinned: boolean) {
+  if (!config.useSupabaseLive) return;
+  const supabase = getSupabaseClient(config);
+  if (!supabase) return;
+
+  try {
+    await supabase.from('announcements').update({ is_pinned: isPinned }).eq('id', id);
+  } catch (err) {
+    console.warn('dbTogglePinAnnouncement error:', err);
   }
 }

@@ -118,3 +118,19 @@ export interface SchoolConfig {
   supabaseAnonKey?: string;
   useSupabaseLive: boolean;
 }
+
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  category: 'Akademik' | 'Keagamaan' | 'Kegiatan' | 'PENTING' | 'Informasi Umum';
+  authorId: string;
+  authorName: string;
+  authorRole: UserRole;
+  targetType: 'ALL' | 'CLASS';
+  targetClassId?: string;
+  targetClassName?: string;
+  date: string; // YYYY-MM-DD
+  createdAt: string; // YYYY-MM-DD HH:mm:ss
+  isPinned?: boolean;
+}

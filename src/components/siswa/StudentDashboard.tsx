@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Student, AttendanceRecord, ActivityType, SchoolConfig, User } from '../../types';
+import { Student, AttendanceRecord, ActivityType, SchoolConfig, User, Announcement } from '../../types';
 import { StudentCardModal } from '../common/StudentCardModal';
 import {
   GraduationCap,
@@ -23,6 +23,7 @@ import {
   Eye,
   EyeOff,
   User as UserIcon,
+  Megaphone,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -32,6 +33,8 @@ interface StudentDashboardProps {
   activities: ActivityType[];
   schoolConfig: SchoolConfig;
   currentUser?: User;
+  announcements?: Announcement[];
+  onNavigateTab?: (tab: string) => void;
   onRecordAttendance?: (record: Omit<AttendanceRecord, 'id'>) => boolean | void;
   onUpdateStudentAccount?: (
     updatedStudent: Student,
@@ -45,6 +48,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   activities,
   schoolConfig,
   currentUser,
+  announcements = [],
+  onNavigateTab,
   onUpdateStudentAccount,
 }) => {
   const [showFullQr, setShowFullQr] = useState(false);
@@ -180,6 +185,72 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Pengumuman Terbaru Section for Student */}
+      {announcements.length > 0 && (() => {
+        const studentAnnouncements = announcements.filter(
+          (a) =>
+            a.targetType === 'ALL' ||
+            (a.targetType === 'CLASS' &&
+              (a.targetClassId === student.classId || a.targetClassName === student.className))
+        );
+
+        if (studentAnnouncements.length === 0) return null;
+
+        return (
+          <div className="bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-3xl border border-white/10 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-blue-500/20 rounded-xl text-blue-400">
+                  <Megaphone className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-sm">Pengumuman Terbaru untuk Siswa</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Pengumuman resmi dari Wali Kelas ({student.className}), Guru Agama & Sekolah
+                  </p>
+                </div>
+              </div>
+
+              {onNavigateTab && (
+                <button
+                  onClick={() => onNavigateTab('announcements')}
+                  className="px-3.5 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Lihat Semua ({studentAnnouncements.length}) →
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {studentAnnouncements.slice(0, 2).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => onNavigateTab && onNavigateTab('announcements')}
+                  className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-400/40 p-4 rounded-2xl space-y-2 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-bold text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-lg border border-amber-500/30">
+                      {item.category}
+                    </span>
+                    <span className="text-slate-400 font-mono">{item.date}</span>
+                  </div>
+                  <h4 className="font-bold text-xs text-white group-hover:text-blue-300 transition-colors line-clamp-1">
+                    {item.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
+                    {item.content}
+                  </p>
+                  <div className="pt-1 text-[10px] text-slate-400 flex items-center justify-between">
+                    <span>Oleh: {item.authorName}</span>
+                    <span className="text-blue-400 font-semibold group-hover:underline">Buka Detail →</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Friday Prayer Alert for Males */}
       {isMale && (
