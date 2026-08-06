@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { AttendanceRecord, Student, SchoolConfig, ActivityType } from '../types';
+import { formatImageUrl } from './imageUtils';
 
 interface ExportFilter {
   date?: string; // e.g. "2026-07-30" (for daily export)
@@ -251,7 +252,7 @@ export const exportAttendanceToPDF = (
   const pageWidth = doc.internal.pageSize.getWidth();
 
   // Header Kop Surat - Render School Logo
-  let logoData = config.logoUrl;
+  let logoData = config.logoUrl ? formatImageUrl(config.logoUrl) : '';
   if (!logoData || !logoData.trim()) {
     logoData = getDefaultSmaLogoDataUrl();
   }

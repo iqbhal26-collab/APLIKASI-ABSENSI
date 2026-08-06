@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, SchoolConfig } from '../types';
 import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../data/mockData';
+import { formatImageUrl } from '../lib/imageUtils';
 import {
   School,
   Bell,
@@ -92,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-lg shadow-blue-500/20 overflow-hidden shrink-0">
               {schoolConfig.logoUrl ? (
                 <img
-                  src={schoolConfig.logoUrl}
+                  src={formatImageUrl(schoolConfig.logoUrl)}
                   alt={schoolConfig.schoolName}
                   className="w-full h-full object-cover rounded-xl"
                   onError={(e) => {

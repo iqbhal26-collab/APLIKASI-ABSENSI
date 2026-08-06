@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student, SchoolClass, SchoolConfig } from '../../types';
 import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../../data/mockData';
+import { formatImageUrl } from '../../lib/imageUtils';
 import { StudentCardModal } from '../common/StudentCardModal';
 import { CreditCard, Printer, Search, School, QrCode, Filter, Sparkles, Check, Download, Eye, X, Image as ImageIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -67,8 +68,9 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
 
       const printWindow = window.open('', '_blank');
       if (printWindow) {
-        const logoHtml = schoolConfig.logoUrl
-          ? `<img src="${schoolConfig.logoUrl}" style="width: 28px; height: 28px; object-fit: contain; background: white; padding: 2px; border-radius: 6px; border: 1px solid #10b981;" />`
+        const formattedLogoUrl = schoolConfig.logoUrl ? formatImageUrl(schoolConfig.logoUrl) : '';
+        const logoHtml = formattedLogoUrl
+          ? `<img src="${formattedLogoUrl}" style="width: 28px; height: 28px; object-fit: contain; background: white; padding: 2px; border-radius: 6px; border: 1px solid #10b981;" onerror="this.src='${DEFAULT_SCHOOL_LOGO_DATA_URL}'" />`
           : `<div style="width: 28px; height: 28px; border-radius: 6px; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">🏫</div>`;
 
         const pagesHtml = pages.map((pageStudents, pageIdx) => {
@@ -512,7 +514,7 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                             <div className="flex items-center space-x-2 min-w-0">
                               {schoolConfig.logoUrl ? (
                                 <img
-                                  src={schoolConfig.logoUrl}
+                                  src={formatImageUrl(schoolConfig.logoUrl)}
                                   alt="Logo Sekolah"
                                   className="w-7 h-7 rounded-lg object-contain bg-white p-0.5 border border-emerald-500/40 shrink-0"
                                   onError={(e) => {
@@ -624,7 +626,7 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                             <div className="flex items-center space-x-2.5">
                               {schoolConfig.logoUrl ? (
                                 <img
-                                  src={schoolConfig.logoUrl}
+                                  src={formatImageUrl(schoolConfig.logoUrl)}
                                   alt="Logo Sekolah"
                                   className="w-9 h-9 rounded-lg object-contain bg-white p-0.5 border border-emerald-500/40 shadow-sm shrink-0"
                                   onError={(e) => {

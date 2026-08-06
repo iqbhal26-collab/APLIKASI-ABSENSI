@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student, SchoolConfig } from '../../types';
 import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../../data/mockData';
+import { formatImageUrl } from '../../lib/imageUtils';
 import { QrCode, X, Printer, LayoutGrid, RotateCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -24,8 +25,9 @@ export const StudentCardModal: React.FC<StudentCardModalProps> = ({
       const printWindow = window.open('', '_blank');
       if (!printWindow) return;
 
-      const logoHtml = schoolConfig?.logoUrl
-        ? `<img src="${schoolConfig.logoUrl}" style="width: 28px; height: 28px; object-fit: contain; background: white; padding: 2px; border-radius: 6px; border: 1px solid #10b981;" onerror="this.src='${DEFAULT_SCHOOL_LOGO_DATA_URL}'" />`
+      const formattedLogoUrl = schoolConfig?.logoUrl ? formatImageUrl(schoolConfig.logoUrl) : '';
+      const logoHtml = formattedLogoUrl
+        ? `<img src="${formattedLogoUrl}" style="width: 28px; height: 28px; object-fit: contain; background: white; padding: 2px; border-radius: 6px; border: 1px solid #10b981;" onerror="this.src='${DEFAULT_SCHOOL_LOGO_DATA_URL}'" />`
         : `<div style="width: 28px; height: 28px; border-radius: 6px; background: #10b981; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">🏫</div>`;
 
       if (orientation === 'portrait') {

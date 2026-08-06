@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Student, UserRole, SchoolConfig, SchoolClass } from '../types';
+import { formatImageUrl } from '../lib/imageUtils';
 import {
   ShieldCheck,
   UserCheck,
@@ -369,7 +370,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-blue-500/20 overflow-hidden shrink-0">
               {schoolConfig.logoUrl ? (
                 <img
-                  src={schoolConfig.logoUrl}
+                  src={formatImageUrl(schoolConfig.logoUrl)}
                   alt={schoolConfig.schoolName}
                   className="w-full h-full object-cover rounded-xl"
                   onError={(e) => {

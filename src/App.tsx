@@ -18,6 +18,7 @@ import {
   AttendanceStatus,
   Announcement
 } from './types';
+import { formatImageUrl } from './lib/imageUtils';
 import {
   PERMANENT_SUPABASE_URL,
   PERMANENT_SUPABASE_ANON_KEY,
@@ -89,7 +90,7 @@ export default function App() {
     const url = parsed.supabaseUrl || metaEnv.VITE_SUPABASE_URL || initialSchoolConfig.supabaseUrl || PERMANENT_SUPABASE_URL;
     const key = parsed.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || initialSchoolConfig.supabaseAnonKey || PERMANENT_SUPABASE_ANON_KEY;
     const sName = (!parsed.schoolName || parsed.schoolName.includes('EDUKASI') || parsed.schoolName.includes('Prestasi')) ? 'SMAN 2 BULUKUMBA' : parsed.schoolName;
-    let logo = parsed.logoUrl;
+    let logo = parsed.logoUrl ? formatImageUrl(parsed.logoUrl) : '';
     if (!logo || logo.includes('wikimedia.org') || logo.includes('example.com')) {
       logo = DEFAULT_SCHOOL_LOGO_DATA_URL;
     }

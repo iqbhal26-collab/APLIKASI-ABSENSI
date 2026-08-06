@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SchoolConfig } from '../../types';
 import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../../data/mockData';
 import { SUPABASE_SQL_SCHEMA, sanitizeSupabaseUrl } from '../../lib/supabase';
+import { formatImageUrl } from '../../lib/imageUtils';
 import { Settings, Database, Copy, Check, School, ShieldCheck, Sparkles, AlertCircle, RefreshCw, UploadCloud, DownloadCloud, Image as ImageIcon, Trash2, Upload } from 'lucide-react';
 
 interface SystemConfigProps {
@@ -71,7 +72,8 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanedUrl = sanitizeSupabaseUrl(formData.supabaseUrl || '');
-    const cleanedConfig = { ...formData, supabaseUrl: cleanedUrl };
+    const cleanedLogo = formatImageUrl(formData.logoUrl || '');
+    const cleanedConfig = { ...formData, supabaseUrl: cleanedUrl, logoUrl: cleanedLogo };
     setFormData(cleanedConfig);
     onUpdateConfig(cleanedConfig);
     setSaveSuccess(true);
@@ -274,7 +276,7 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({
                   {formData.logoUrl ? (
                     <>
                       <img
-                        src={formData.logoUrl}
+                        src={formatImageUrl(formData.logoUrl)}
                         alt="Logo Sekolah"
                         className="w-full h-full object-contain p-2"
                         onError={(e) => {
@@ -327,13 +329,14 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({
                     <div>
                       <input
                         type="text"
-                        placeholder="https://domain-sekolah.sch.id/logo.png"
+                        placeholder="https://drive.google.com/... atau https://domain-sekolah.sch.id/logo.png"
                         value={formData.logoUrl || ''}
-                        onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                        className="w-full bg-black/40 border border-white/10 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        onChange={(e) => setFormData({ ...formData, logoUrl: formatImageUrl(e.target.value) })}
+                        onBlur={(e) => setFormData(prev => ({ ...prev, logoUrl: formatImageUrl(prev.logoUrl || '') }))}
+                        className="w-full bg-black/40 border border-white/10 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                       />
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        Masukkan link URL gambar logo sekolah langsung dari website/storage.
+                      <p className="text-[10px] text-emerald-400/90 mt-1 flex items-center gap-1 font-medium">
+                        <span>💡 Link Google Drive atau Dropbox otomatis dikonversi menjadi URL gambar langsung.</span>
                       </p>
                     </div>
                   )}
