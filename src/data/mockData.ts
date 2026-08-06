@@ -7,6 +7,8 @@ const metaEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env)
 const defaultSupabaseUrl = metaEnv.VITE_SUPABASE_URL || PERMANENT_SUPABASE_URL;
 const defaultSupabaseAnonKey = metaEnv.VITE_SUPABASE_ANON_KEY || PERMANENT_SUPABASE_ANON_KEY;
 
+export const DEFAULT_SCHOOL_LOGO_DATA_URL = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160"><defs><linearGradient id="bgG" x1="0%25" y1="0%25" x2="100%25" y2="100%25"><stop offset="0%25" stop-color="%230284c7"/><stop offset="100%25" stop-color="%2310b981"/></linearGradient><linearGradient id="shieldG" x1="0%25" y1="0%25" x2="0%25" y2="100%25"><stop offset="0%25" stop-color="%230f172a"/><stop offset="100%25" stop-color="%231e293b"/></linearGradient><linearGradient id="goldG" x1="0%25" y1="0%25" x2="100%25" y2="100%25"><stop offset="0%25" stop-color="%23fbbf24"/><stop offset="100%25" stop-color="%23d97706"/></linearGradient></defs><rect width="160" height="160" rx="36" fill="url(%23bgG)"/><polygon points="80,24 130,56 112,126 48,126 30,56" fill="url(%23shieldG)" stroke="%23ffffff" stroke-width="5" stroke-linejoin="round"/><path d="M80 38 Q90 52 80 66 Q70 52 80 38 Z" fill="url(%23goldG)"/><path d="M80 46 Q85 55 80 62 Q75 55 80 46 Z" fill="%23ef4444"/><path d="M80 72 Q105 60 118 78 Q98 84 80 80 Q62 84 42 78 Q55 60 80 72 Z" fill="%23ffffff" opacity="0.95"/><rect x="44" y="94" width="72" height="20" rx="6" fill="%2310b981"/><text x="80" y="108" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="11" fill="%23022c22" text-anchor="middle" letter-spacing="1">SMAN 2</text></svg>';
+
 export const initialSchoolConfig: SchoolConfig = {
   schoolName: 'SMAN 2 BULUKUMBA',
   npsn: '20103482',
@@ -16,7 +18,7 @@ export const initialSchoolConfig: SchoolConfig = {
   principalName: 'Dr. H. Hendra Wijaya, M.Pd.',
   principalNip: '19680512 199303 1 004',
   toleranceMinutes: 15,
-  logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg/200px-Logo_of_Ministry_of_Education_and_Culture_of_Republic_of_Indonesia.svg.png',
+  logoUrl: DEFAULT_SCHOOL_LOGO_DATA_URL,
   useSupabaseLive: true,
   supabaseUrl: defaultSupabaseUrl,
   supabaseAnonKey: defaultSupabaseAnonKey,

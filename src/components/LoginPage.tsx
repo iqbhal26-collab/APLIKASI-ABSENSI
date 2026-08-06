@@ -16,6 +16,8 @@ import {
   QrCode
 } from 'lucide-react';
 
+import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../data/mockData';
+
 interface LoginPageProps {
   schoolConfig: SchoolConfig;
   users: User[];
@@ -366,7 +368,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="inline-flex items-center space-x-3 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl backdrop-blur-md shadow-lg">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-emerald-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-blue-500/20 overflow-hidden shrink-0">
               {schoolConfig.logoUrl ? (
-                <img src={schoolConfig.logoUrl} alt={schoolConfig.schoolName} className="w-full h-full object-cover rounded-xl" />
+                <img
+                  src={schoolConfig.logoUrl}
+                  alt={schoolConfig.schoolName}
+                  className="w-full h-full object-cover rounded-xl"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_SCHOOL_LOGO_DATA_URL;
+                  }}
+                />
               ) : (
                 <School className="w-5 h-5 text-slate-950" />
               )}

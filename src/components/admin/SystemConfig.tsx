@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SchoolConfig } from '../../types';
+import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../../data/mockData';
 import { SUPABASE_SQL_SCHEMA, sanitizeSupabaseUrl } from '../../lib/supabase';
 import { Settings, Database, Copy, Check, School, ShieldCheck, Sparkles, AlertCircle, RefreshCw, UploadCloud, DownloadCloud, Image as ImageIcon, Trash2, Upload } from 'lucide-react';
 
@@ -276,6 +277,9 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({
                         src={formData.logoUrl}
                         alt="Logo Sekolah"
                         className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = DEFAULT_SCHOOL_LOGO_DATA_URL;
+                        }}
                       />
                       <button
                         type="button"

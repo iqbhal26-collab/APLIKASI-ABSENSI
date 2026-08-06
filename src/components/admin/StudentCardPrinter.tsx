@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Student, SchoolClass, SchoolConfig } from '../../types';
+import { DEFAULT_SCHOOL_LOGO_DATA_URL } from '../../data/mockData';
 import { StudentCardModal } from '../common/StudentCardModal';
 import { CreditCard, Printer, Search, School, QrCode, Filter, Sparkles, Check, Download, Eye, X, Image as ImageIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -514,6 +515,9 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                                   src={schoolConfig.logoUrl}
                                   alt="Logo Sekolah"
                                   className="w-7 h-7 rounded-lg object-contain bg-white p-0.5 border border-emerald-500/40 shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = DEFAULT_SCHOOL_LOGO_DATA_URL;
+                                  }}
                                 />
                               ) : (
                                 <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-950 font-extrabold text-xs shrink-0">
@@ -623,6 +627,9 @@ export const StudentCardPrinter: React.FC<StudentCardPrinterProps> = ({
                                   src={schoolConfig.logoUrl}
                                   alt="Logo Sekolah"
                                   className="w-9 h-9 rounded-lg object-contain bg-white p-0.5 border border-emerald-500/40 shadow-sm shrink-0"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = DEFAULT_SCHOOL_LOGO_DATA_URL;
+                                  }}
                                 />
                               ) : (
                                 <div className="w-9 h-9 rounded-lg bg-emerald-500 flex items-center justify-center text-slate-900 font-bold shadow-sm shrink-0">

@@ -20,6 +20,7 @@ import {
 import {
   PERMANENT_SUPABASE_URL,
   PERMANENT_SUPABASE_ANON_KEY,
+  DEFAULT_SCHOOL_LOGO_DATA_URL,
   initialSchoolConfig,
   initialActivities,
   initialClasses,
@@ -82,9 +83,14 @@ export default function App() {
     const url = parsed.supabaseUrl || metaEnv.VITE_SUPABASE_URL || initialSchoolConfig.supabaseUrl || PERMANENT_SUPABASE_URL;
     const key = parsed.supabaseAnonKey || metaEnv.VITE_SUPABASE_ANON_KEY || initialSchoolConfig.supabaseAnonKey || PERMANENT_SUPABASE_ANON_KEY;
     const sName = (!parsed.schoolName || parsed.schoolName.includes('EDUKASI') || parsed.schoolName.includes('Prestasi')) ? 'SMAN 2 BULUKUMBA' : parsed.schoolName;
+    let logo = parsed.logoUrl;
+    if (!logo || logo.includes('wikimedia.org') || logo.includes('example.com')) {
+      logo = DEFAULT_SCHOOL_LOGO_DATA_URL;
+    }
     return {
       ...parsed,
       schoolName: sName,
+      logoUrl: logo,
       supabaseUrl: url,
       supabaseAnonKey: key,
       useSupabaseLive: true,
