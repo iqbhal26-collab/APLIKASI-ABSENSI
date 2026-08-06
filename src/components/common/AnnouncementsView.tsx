@@ -45,6 +45,7 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Determine managed classes for Wali Kelas
   const teacherClasses = classes.filter(
@@ -414,13 +415,9 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
                         <Pin className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => {
-                          if (confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
-                            onDeleteAnnouncement(item.id);
-                          }
-                        }}
+                        onClick={() => setDeleteConfirmId(item.id)}
                         title="Hapus Pengumuman"
-                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs transition-colors cursor-pointer"
+                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 rounded-xl text-xs transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -494,12 +491,65 @@ export const AnnouncementsView: React.FC<AnnouncementsViewProps> = ({
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex items-center justify-between pt-2">
+              {(currentUser.role === 'admin' || currentUser.id === selectedAnnouncement.authorId) ? (
+                <button
+                  onClick={() => setDeleteConfirmId(selectedAnnouncement.id)}
+                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 hover:border-red-500/50 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center space-x-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Pengumuman</span>
+                </button>
+              ) : <div />}
+
               <button
                 onClick={() => setSelectedAnnouncement(null)}
                 className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
               >
                 Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Delete Confirmation */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-[#0f172a] border border-red-500/30 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center space-x-3.5">
+              <div className="p-3 bg-red-500/20 text-red-400 rounded-2xl border border-red-500/30 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">Hapus Pengumuman?</h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Pengumuman ini akan dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-white/10">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirmId) {
+                    onDeleteAnnouncement(deleteConfirmId);
+                    if (selectedAnnouncement?.id === deleteConfirmId) {
+                      setSelectedAnnouncement(null);
+                    }
+                    setDeleteConfirmId(null);
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl text-xs shadow-lg shadow-red-500/30 transition-all cursor-pointer flex items-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Ya, Hapus Sekarang</span>
               </button>
             </div>
           </div>
