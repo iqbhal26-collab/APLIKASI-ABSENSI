@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Student, AttendanceRecord, ActivityType, SchoolConfig, User } from '../../types';
+import { StudentCardModal } from '../common/StudentCardModal';
 import {
   GraduationCap,
   QrCode,
@@ -293,47 +294,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
       {/* Full Screen Digital Card Modal */}
       {showFullQr && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-2xl border border-white/15 w-full max-w-sm text-center space-y-4">
-            <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <h3 className="font-bold text-sm">Kartu Digital QR Absensi</h3>
-              <button
-                onClick={() => setShowFullQr(false)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
-              >
-                &times;
-              </button>
-            </div>
-
-            <div className="p-4 bg-white rounded-2xl inline-block shadow-lg my-2 border border-slate-200">
-              <QRCodeSVG value={student.qrCode || `QR-STD-${student.nisn}`} size={192} level="H" />
-            </div>
-
-            <div>
-              <div className="font-bold text-base text-white">{student.name}</div>
-              <div className="text-xs text-amber-400 font-mono mt-0.5">NISN: {student.nisn}</div>
-              <div className="text-xs text-slate-400 mt-1">
-                Dekatkan layar HP ini ke mesin scanner di gerbang / masjid sekolah.
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 pt-2">
-              <button
-                onClick={() => window.print()}
-                className="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl transition-all flex items-center justify-center space-x-1.5"
-              >
-                <Printer className="w-4 h-4 text-slate-950" />
-                <span>Cetak Kartu</span>
-              </button>
-              <button
-                onClick={() => setShowFullQr(false)}
-                className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/10"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
+        <StudentCardModal
+          student={student}
+          schoolConfig={schoolConfig}
+          onClose={() => setShowFullQr(false)}
+        />
       )}
 
       {/* Modal Edit Data Akun Siswa */}
