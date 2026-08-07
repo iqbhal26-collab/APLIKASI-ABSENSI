@@ -9,6 +9,7 @@ import {
   Camera,
   CameraOff,
   RefreshCw,
+  SwitchCamera,
   Bell,
   Volume2
 } from 'lucide-react';
@@ -127,6 +128,8 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [availableCameras, setAvailableCameras] = useState<Array<{ id: string; label: string }>>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [lastScannedText, setLastScannedText] = useState<string>('');
   const [lastScanTime, setLastScanTime] = useState<number>(0);
 
@@ -272,6 +275,22 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     processAttendanceForStudent(currentStudent);
   };
 
+  // Enumerate cameras when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length > 0) {
+          setAvailableCameras(devices.map((d, index) => ({
+            id: d.id,
+            label: d.label || `Kamera Perangkat ${index + 1}`
+          })));
+        }
+      }).catch((err) => {
+        console.warn('Could not enumerate cameras:', err);
+      });
+    }
+  }, [isOpen]);
+
   // Initialize and control HTML5 QR Code scanner
   useEffect(() => {
     let html5Qrcode: Html5Qrcode | null = null;
@@ -290,8 +309,12 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
           html5Qrcode = new Html5Qrcode(qrContainerId);
           html5QrcodeRef.current = html5Qrcode;
 
+          const cameraConstraint = selectedCameraId
+            ? selectedCameraId
+            : { facingMode: facingMode };
+
           await html5Qrcode.start(
-            { facingMode: facingMode },
+            cameraConstraint,
             {
               fps: 10,
               qrbox: { width: 200, height: 200 },
@@ -310,7 +333,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
           console.warn('Primary camera start failed:', err);
           if (!isSubscribed) return;
 
-          // Try fallback to standard camera if environment mode failed
+          // Try fallback to standard user camera if environment mode or device ID failed
           try {
             if (html5Qrcode) {
               await html5Qrcode.start(
@@ -363,7 +386,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
         }
       }
     }
-  }, [isOpen, isCameraActive, facingMode, handleScanSuccess]);
+  }, [isOpen, isCameraActive, facingMode, selectedCameraId, handleScanSuccess]);
 
   const toggleCameraFacing = () => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
@@ -440,9 +463,9 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
           </div>
 
           {/* Active Camera Frame & Scanner Area */}
-          <div className="bg-black/60 rounded-2xl p-4 border border-white/10 relative overflow-hidden flex flex-col items-center">
+          <div className="bg-black/60 rounded-2xl p-4 border border-white/10 relative overflow-hidden flex flex-col items-center space-y-3">
             {/* Camera Controls Bar */}
-            <div className="w-full flex items-center justify-between mb-3 px-1 text-xs">
+            <div className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-1 text-xs">
               <div className="flex items-center space-x-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${isScanning ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`} />
                 <span className="font-bold text-slate-200">
@@ -450,19 +473,7 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
                 </span>
               </div>
 
-              <div className="flex items-center space-x-2">
-                {isCameraActive && (
-                  <button
-                    type="button"
-                    onClick={toggleCameraFacing}
-                    className="p-1.5 bg-white/10 hover:bg-white/20 text-slate-200 rounded-lg flex items-center space-x-1 text-xs transition-all cursor-pointer"
-                    title="Beralih Kamera Depan / Belakang"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Ubah Kamera</span>
-                  </button>
-                )}
-
+              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
                 <button
                   type="button"
                   onClick={() => setIsCameraActive(!isCameraActive)}
@@ -486,6 +497,76 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Menu Ganti Kamera Depan / Belakang */}
+            {isCameraActive && (
+              <div className="w-full bg-slate-900/90 border border-white/10 rounded-xl p-2.5 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300">
+                  <span className="flex items-center space-x-1">
+                    <SwitchCamera className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Pilih / Ganti Kamera:</span>
+                  </span>
+                  <span className="text-emerald-400 font-mono text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    {selectedCameraId
+                      ? 'Kamera Perangkat Spesifik'
+                      : facingMode === 'user'
+                      ? '🤳 Kamera Depan (Selfie)'
+                      : '📷 Kamera Belakang (Utama)'}
+                  </span>
+                </div>
+
+                {/* Quick Toggle Buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCameraId('');
+                      setFacingMode('user');
+                    }}
+                    className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+                      !selectedCameraId && facingMode === 'user'
+                        ? 'bg-emerald-500/25 border-emerald-500 text-emerald-300 shadow-sm'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
+                    }`}
+                  >
+                    <span>🤳 Kamera Depan</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCameraId('');
+                      setFacingMode('environment');
+                    }}
+                    className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+                      !selectedCameraId && facingMode === 'environment'
+                        ? 'bg-emerald-500/25 border-emerald-500 text-emerald-300 shadow-sm'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
+                    }`}
+                  >
+                    <span>📷 Kamera Belakang</span>
+                  </button>
+                </div>
+
+                {/* Optional Device Selector Dropdown if multiple cameras detected */}
+                {availableCameras.length > 0 && (
+                  <div className="pt-1">
+                    <select
+                      value={selectedCameraId}
+                      onChange={(e) => setSelectedCameraId(e.target.value)}
+                      className="w-full bg-slate-950 border border-white/10 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">-- Pilih Spesifik Perangkat Kamera --</option>
+                      {availableCameras.map((cam) => (
+                        <option key={cam.id} value={cam.id}>
+                          📷 {cam.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Viewport for HTML5 QR Code Camera Stream */}
             {isCameraActive ? (

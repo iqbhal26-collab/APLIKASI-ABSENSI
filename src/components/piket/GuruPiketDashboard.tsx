@@ -8,6 +8,7 @@ import {
   Camera,
   CameraOff,
   RefreshCw,
+  SwitchCamera,
   Search,
   Users,
   Clock,
@@ -129,6 +130,8 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [availableCameras, setAvailableCameras] = useState<Array<{ id: string; label: string }>>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [lastScannedText, setLastScannedText] = useState<string>('');
   const [lastScanTime, setLastScanTime] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -294,6 +297,22 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
     }, 100);
   };
 
+  // Enumerate cameras
+  useEffect(() => {
+    if (isCameraActive) {
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length > 0) {
+          setAvailableCameras(devices.map((d, index) => ({
+            id: d.id,
+            label: d.label || `Kamera Perangkat ${index + 1}`
+          })));
+        }
+      }).catch((err) => {
+        console.warn('Could not enumerate cameras in Piket dashboard:', err);
+      });
+    }
+  }, [isCameraActive]);
+
   // Camera initialization
   useEffect(() => {
     if (!isCameraActive) {
@@ -323,8 +342,12 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
           aspectRatio: 1.0,
         };
 
+        const cameraConstraint = selectedCameraId
+          ? selectedCameraId
+          : { facingMode };
+
         await html5QrcodeRef.current.start(
-          { facingMode },
+          cameraConstraint,
           config,
           (decodedText) => {
             if (isMounted) handleScanSuccess(decodedText);
@@ -353,7 +376,7 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
         }
       }
     };
-  }, [isCameraActive, facingMode, handleScanSuccess]);
+  }, [isCameraActive, facingMode, selectedCameraId, handleScanSuccess]);
 
   // Today stats for Datang & Pulang
   const todayStr = new Date().toISOString().split('T')[0];
@@ -513,22 +536,13 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
         {/* Left Column: Camera Scanner & Barcode Hardware Input */}
         <div className="lg:col-span-7 bg-slate-900/90 border border-white/10 rounded-3xl p-5 shadow-2xl space-y-5">
           {/* Controls Bar */}
-          <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3 border-b border-white/10">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
               <span className="font-extrabold text-sm text-white">Pemindai Barcode Kamera / Hardware</span>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
-                className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-xs font-semibold rounded-xl text-slate-200 transition-all flex items-center space-x-1 cursor-pointer"
-                title="Ganti Kamera Depan / Belakang"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="hidden sm:inline">Ganti Kamera</span>
-              </button>
-
+            <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
               <button
                 onClick={() => setIsCameraActive(!isCameraActive)}
                 className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
@@ -542,6 +556,76 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Menu Pilih & Ganti Kamera Depan / Belakang */}
+          {isCameraActive && (
+            <div className="bg-slate-950/80 border border-white/10 rounded-2xl p-3 space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <span className="flex items-center space-x-1.5">
+                  <SwitchCamera className="w-4 h-4 text-emerald-400" />
+                  <span>Menu Ganti Kamera:</span>
+                </span>
+                <span className="text-emerald-400 font-mono text-[11px] bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/20">
+                  {selectedCameraId
+                    ? 'Kamera Perangkat Spesifik'
+                    : facingMode === 'user'
+                    ? '🤳 Kamera Depan (Selfie)'
+                    : '📷 Kamera Belakang (Utama)'}
+                </span>
+              </div>
+
+              {/* Quick Toggle Buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCameraId('');
+                    setFacingMode('user');
+                  }}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+                    !selectedCameraId && facingMode === 'user'
+                      ? 'bg-emerald-500/25 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
+                  }`}
+                >
+                  <span>🤳 Kamera Depan (Selfie)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCameraId('');
+                    setFacingMode('environment');
+                  }}
+                  className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
+                    !selectedCameraId && facingMode === 'environment'
+                      ? 'bg-emerald-500/25 border-emerald-500 text-emerald-300 shadow-md shadow-emerald-500/10'
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-300'
+                  }`}
+                >
+                  <span>📷 Kamera Belakang (Utama)</span>
+                </button>
+              </div>
+
+              {/* Hardware Device Selection if multiple cameras present */}
+              {availableCameras.length > 0 && (
+                <div>
+                  <select
+                    value={selectedCameraId}
+                    onChange={(e) => setSelectedCameraId(e.target.value)}
+                    className="w-full bg-slate-900 border border-white/15 text-slate-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="">-- Pilih Spesifik Perangkat Kamera --</option>
+                    {availableCameras.map((cam) => (
+                      <option key={cam.id} value={cam.id}>
+                        📷 {cam.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Camera Stream Viewport */}
           <div className="relative rounded-2xl overflow-hidden bg-slate-950 border-2 border-slate-800 aspect-video flex items-center justify-center">
