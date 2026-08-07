@@ -275,118 +275,161 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
     processAttendanceForStudent(currentStudent);
   };
 
-  // Enumerate cameras when modal opens
+  // Enumerate cameras
+  const refreshCameraList = useCallback(async () => {
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (devices && devices.length > 0) {
+        setAvailableCameras(devices.map((d, index) => ({
+          id: d.id,
+          label: d.label || `Kamera Perangkat ${index + 1}`
+        })));
+      }
+    } catch (err) {
+      console.warn('Could not enumerate cameras:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
-      Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length > 0) {
-          setAvailableCameras(devices.map((d, index) => ({
-            id: d.id,
-            label: d.label || `Kamera Perangkat ${index + 1}`
-          })));
-        }
-      }).catch((err) => {
-        console.warn('Could not enumerate cameras:', err);
-      });
+      refreshCameraList();
     }
-  }, [isOpen]);
+  }, [isOpen, refreshCameraList]);
 
   // Initialize and control HTML5 QR Code scanner
   useEffect(() => {
-    let html5Qrcode: Html5Qrcode | null = null;
     let isSubscribed = true;
 
-    if (isOpen && isCameraActive) {
+    if (!isOpen || !isCameraActive) {
+      setIsScanning(false);
+      if (html5QrcodeRef.current) {
+        const instance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
+        if (instance.isScanning) {
+          instance.stop().catch(() => {}).finally(() => {
+            instance.clear();
+          });
+        } else {
+          instance.clear();
+        }
+      }
+      return;
+    }
+
+    const startScanner = async () => {
       setCameraError(null);
       setIsScanning(true);
 
-      const startScanner = async () => {
+      // Clean up previous instance cleanly
+      if (html5QrcodeRef.current) {
+        const prevInstance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
         try {
-          // Ensure DOM element is present
-          const element = document.getElementById(qrContainerId);
-          if (!element) return;
+          if (prevInstance.isScanning) {
+            await prevInstance.stop();
+          }
+          prevInstance.clear();
+        } catch (e) {
+          console.warn('Previous scanner stop warning:', e);
+        }
+      }
 
-          html5Qrcode = new Html5Qrcode(qrContainerId);
-          html5QrcodeRef.current = html5Qrcode;
+      // 250ms pause to ensure mobile OS releases hardware camera lock
+      await new Promise(resolve => setTimeout(resolve, 250));
+      if (!isSubscribed) return;
 
-          const cameraConstraint = selectedCameraId
-            ? selectedCameraId
-            : { facingMode: facingMode };
+      const element = document.getElementById(qrContainerId);
+      if (!element) return;
 
-          await html5Qrcode.start(
-            cameraConstraint,
+      const newHtml5Qrcode = new Html5Qrcode(qrContainerId);
+      html5QrcodeRef.current = newHtml5Qrcode;
+
+      // Prepare ordered list of constraints to attempt
+      const constraintsToTry: Array<any> = [];
+
+      if (selectedCameraId) {
+        constraintsToTry.push(selectedCameraId);
+        constraintsToTry.push({ deviceId: { exact: selectedCameraId } });
+      }
+
+      if (availableCameras.length > 0) {
+        const labelKeyword = facingMode === 'user'
+          ? /front|user|selfie|depan|facing front|camera 1|camera 0/i
+          : /back|rear|environment|belakang|facing back|main/i;
+        const matched = availableCameras.find(c => labelKeyword.test(c.label));
+        if (matched && matched.id !== selectedCameraId) {
+          constraintsToTry.push(matched.id);
+        }
+      }
+
+      if (facingMode === 'user') {
+        constraintsToTry.push({ facingMode: 'user' });
+        constraintsToTry.push({ facingMode: { exact: 'user' } });
+      } else {
+        constraintsToTry.push({ facingMode: 'environment' });
+        constraintsToTry.push({ facingMode: { exact: 'environment' } });
+      }
+
+      availableCameras.forEach(c => {
+        if (!constraintsToTry.includes(c.id)) {
+          constraintsToTry.push(c.id);
+        }
+      });
+
+      let startedSuccessfully = false;
+
+      for (const constraint of constraintsToTry) {
+        if (!isSubscribed) break;
+        try {
+          await newHtml5Qrcode.start(
+            constraint,
             {
               fps: 10,
-              qrbox: { width: 200, height: 200 },
-              aspectRatio: 1.0,
+              qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                width: Math.min(viewfinderWidth * 0.8, 220),
+                height: Math.min(viewfinderHeight * 0.8, 220)
+              }),
             },
             (decodedText) => {
               if (isSubscribed) {
                 handleScanSuccess(decodedText);
               }
             },
-            () => {
-              // Ignore frame-by-frame scanning errors
-            }
+            () => {}
           );
-        } catch (err: any) {
-          console.warn('Primary camera start failed:', err);
-          if (!isSubscribed) return;
-
-          // Try fallback to standard user camera if environment mode or device ID failed
-          try {
-            if (html5Qrcode) {
-              await html5Qrcode.start(
-                { facingMode: 'user' },
-                { fps: 10, qrbox: { width: 200, height: 200 } },
-                (decodedText) => {
-                  if (isSubscribed) {
-                    handleScanSuccess(decodedText);
-                  }
-                },
-                () => {}
-              );
-              return;
-            }
-          } catch (fallbackErr: any) {
-            console.error('All camera attempts failed:', fallbackErr);
-            if (isSubscribed) {
-              setCameraError('Kamera tidak aktif atau izin kamera ditolak. Pastikan memberikan izin kamera pada browser.');
-              setIsScanning(false);
-            }
-          }
-        }
-      };
-
-      // Slight delay to ensure modal DOM is fully rendered
-      const timeoutId = setTimeout(startScanner, 150);
-
-      return () => {
-        isSubscribed = false;
-        clearTimeout(timeoutId);
-        if (html5QrcodeRef.current) {
-          if (html5QrcodeRef.current.isScanning) {
-            html5QrcodeRef.current.stop().catch(() => {}).finally(() => {
-              html5QrcodeRef.current?.clear();
-            });
-          } else {
-            html5QrcodeRef.current.clear();
-          }
-        }
-      };
-    } else {
-      setIsScanning(false);
-      if (html5QrcodeRef.current) {
-        if (html5QrcodeRef.current.isScanning) {
-          html5QrcodeRef.current.stop().catch(() => {}).finally(() => {
-            html5QrcodeRef.current?.clear();
-          });
-        } else {
-          html5QrcodeRef.current.clear();
+          startedSuccessfully = true;
+          break;
+        } catch (err) {
+          console.warn('Camera constraint failed:', constraint, err);
         }
       }
-    }
-  }, [isOpen, isCameraActive, facingMode, selectedCameraId, handleScanSuccess]);
+
+      if (startedSuccessfully && isSubscribed) {
+        setIsScanning(true);
+        refreshCameraList();
+      } else if (!startedSuccessfully && isSubscribed) {
+        setCameraError('Gagal membuka kamera depan/belakang pada HP. Pastikan memberikan izin kamera di browser dan klik tombol ganti kamera.');
+        setIsScanning(false);
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      isSubscribed = false;
+      if (html5QrcodeRef.current) {
+        const instance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
+        if (instance.isScanning) {
+          instance.stop().catch(() => {}).finally(() => {
+            instance.clear();
+          });
+        } else {
+          instance.clear();
+        }
+      }
+    };
+  }, [isOpen, isCameraActive, facingMode, selectedCameraId, handleScanSuccess, refreshCameraList]);
 
   const toggleCameraFacing = () => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
@@ -571,6 +614,13 @@ export const AttendanceScannerModal: React.FC<AttendanceScannerModalProps> = ({
             {/* Viewport for HTML5 QR Code Camera Stream */}
             {isCameraActive ? (
               <div className="w-full flex flex-col items-center relative">
+                <style>{`
+                  #${qrContainerId} video {
+                    transform: ${facingMode === 'user' ? 'scaleX(-1)' : 'none'} !important;
+                    object-fit: cover !important;
+                    border-radius: 1rem;
+                  }
+                `}</style>
                 <div
                   id={qrContainerId}
                   className="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-emerald-500/50 bg-black min-h-[220px] shadow-inner relative"

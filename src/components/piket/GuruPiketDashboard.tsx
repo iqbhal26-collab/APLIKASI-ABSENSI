@@ -298,85 +298,157 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
   };
 
   // Enumerate cameras
+  const refreshCameraList = useCallback(async () => {
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (devices && devices.length > 0) {
+        setAvailableCameras(devices.map((d, index) => ({
+          id: d.id,
+          label: d.label || `Kamera Perangkat ${index + 1}`
+        })));
+      }
+    } catch (err) {
+      console.warn('Could not enumerate cameras in Piket dashboard:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isCameraActive) {
-      Html5Qrcode.getCameras().then(devices => {
-        if (devices && devices.length > 0) {
-          setAvailableCameras(devices.map((d, index) => ({
-            id: d.id,
-            label: d.label || `Kamera Perangkat ${index + 1}`
-          })));
-        }
-      }).catch((err) => {
-        console.warn('Could not enumerate cameras in Piket dashboard:', err);
-      });
+      refreshCameraList();
     }
-  }, [isCameraActive]);
+  }, [isCameraActive, refreshCameraList]);
 
   // Camera initialization
   useEffect(() => {
+    let isMounted = true;
+
     if (!isCameraActive) {
-      if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
-        html5QrcodeRef.current.stop().catch(console.error);
-      }
       setIsScanning(false);
+      if (html5QrcodeRef.current) {
+        const instance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
+        if (instance.isScanning) {
+          instance.stop().catch(() => {}).finally(() => {
+            instance.clear();
+          });
+        } else {
+          instance.clear();
+        }
+      }
       return;
     }
 
-    let isMounted = true;
-
     const startScanner = async () => {
-      try {
-        setCameraError(null);
-        if (!html5QrcodeRef.current) {
-          html5QrcodeRef.current = new Html5Qrcode(qrContainerId);
+      setCameraError(null);
+      setIsScanning(true);
+
+      // Clean up previous instance cleanly
+      if (html5QrcodeRef.current) {
+        const prevInstance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
+        try {
+          if (prevInstance.isScanning) {
+            await prevInstance.stop();
+          }
+          prevInstance.clear();
+        } catch (e) {
+          console.warn('Previous piket scanner stop warning:', e);
         }
+      }
 
-        if (html5QrcodeRef.current.isScanning) {
-          await html5QrcodeRef.current.stop();
+      // 250ms pause to ensure mobile OS releases hardware camera lock
+      await new Promise(resolve => setTimeout(resolve, 250));
+      if (!isMounted) return;
+
+      const element = document.getElementById(qrContainerId);
+      if (!element) return;
+
+      const newHtml5Qrcode = new Html5Qrcode(qrContainerId);
+      html5QrcodeRef.current = newHtml5Qrcode;
+
+      const constraintsToTry: Array<any> = [];
+
+      if (selectedCameraId) {
+        constraintsToTry.push(selectedCameraId);
+        constraintsToTry.push({ deviceId: { exact: selectedCameraId } });
+      }
+
+      if (availableCameras.length > 0) {
+        const labelKeyword = facingMode === 'user'
+          ? /front|user|selfie|depan|facing front|camera 1|camera 0/i
+          : /back|rear|environment|belakang|facing back|main/i;
+        const matched = availableCameras.find(c => labelKeyword.test(c.label));
+        if (matched && matched.id !== selectedCameraId) {
+          constraintsToTry.push(matched.id);
         }
+      }
 
-        const config = {
-          fps: 15,
-          qrbox: { width: 220, height: 220 },
-          aspectRatio: 1.0,
-        };
+      if (facingMode === 'user') {
+        constraintsToTry.push({ facingMode: 'user' });
+        constraintsToTry.push({ facingMode: { exact: 'user' } });
+      } else {
+        constraintsToTry.push({ facingMode: 'environment' });
+        constraintsToTry.push({ facingMode: { exact: 'environment' } });
+      }
 
-        const cameraConstraint = selectedCameraId
-          ? selectedCameraId
-          : { facingMode };
-
-        await html5QrcodeRef.current.start(
-          cameraConstraint,
-          config,
-          (decodedText) => {
-            if (isMounted) handleScanSuccess(decodedText);
-          },
-          () => {}
-        );
-
-        if (isMounted) setIsScanning(true);
-      } catch (err: any) {
-        if (isMounted) {
-          console.warn('Camera access warning:', err);
-          setCameraError('Kamera tidak tersedia atau tidak diizinkan di browser ini. Gunakan Input Barcode Hardware / Manual di bawah.');
-          setIsScanning(false);
+      availableCameras.forEach(c => {
+        if (!constraintsToTry.includes(c.id)) {
+          constraintsToTry.push(c.id);
         }
+      });
+
+      let startedSuccessfully = false;
+
+      for (const constraint of constraintsToTry) {
+        if (!isMounted) break;
+        try {
+          await newHtml5Qrcode.start(
+            constraint,
+            {
+              fps: 15,
+              qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                width: Math.min(viewfinderWidth * 0.8, 240),
+                height: Math.min(viewfinderHeight * 0.8, 240)
+              }),
+            },
+            (decodedText) => {
+              if (isMounted) handleScanSuccess(decodedText);
+            },
+            () => {}
+          );
+          startedSuccessfully = true;
+          break;
+        } catch (err) {
+          console.warn('Piket camera constraint failed:', constraint, err);
+        }
+      }
+
+      if (startedSuccessfully && isMounted) {
+        setIsScanning(true);
+        refreshCameraList();
+      } else if (!startedSuccessfully && isMounted) {
+        setCameraError('Kamera tidak tersedia atau tidak diizinkan di browser ini. Gunakan Input Barcode Hardware / Manual di bawah.');
+        setIsScanning(false);
       }
     };
 
-    const timeoutId = setTimeout(startScanner, 200);
+    startScanner();
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
       if (html5QrcodeRef.current) {
-        if (html5QrcodeRef.current.isScanning) {
-          html5QrcodeRef.current.stop().catch(console.error);
+        const instance = html5QrcodeRef.current;
+        html5QrcodeRef.current = null;
+        if (instance.isScanning) {
+          instance.stop().catch(() => {}).finally(() => {
+            instance.clear();
+          });
+        } else {
+          instance.clear();
         }
       }
     };
-  }, [isCameraActive, facingMode, selectedCameraId, handleScanSuccess]);
+  }, [isCameraActive, facingMode, selectedCameraId, handleScanSuccess, refreshCameraList]);
 
   // Today stats for Datang & Pulang
   const todayStr = new Date().toISOString().split('T')[0];
@@ -629,6 +701,13 @@ export const GuruPiketDashboard: React.FC<GuruPiketDashboardProps> = ({
 
           {/* Camera Stream Viewport */}
           <div className="relative rounded-2xl overflow-hidden bg-slate-950 border-2 border-slate-800 aspect-video flex items-center justify-center">
+            <style>{`
+              #${qrContainerId} video {
+                transform: ${facingMode === 'user' ? 'scaleX(-1)' : 'none'} !important;
+                object-fit: cover !important;
+                border-radius: 1rem;
+              }
+            `}</style>
             {/* HTML5 QrCode Container */}
             <div
               id={qrContainerId}
